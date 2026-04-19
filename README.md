@@ -38,6 +38,14 @@ The node also accepts direct `JointTrajectory` commands via `/eps_arm/cmd` for t
 
 ---
 
+## Demo
+
+![EPS Mirror Node Demo](eps_demo.gif)
+
+*MoveIt2 planned trajectory simultaneously executed on Gazebo simulation and physical Kinova Gen3.*
+
+---
+
 ## Files
 
 | File | Description |
