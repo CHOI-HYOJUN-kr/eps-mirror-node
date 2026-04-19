@@ -93,6 +93,18 @@ ros2 run eps_mirror mirror_node
 - Validated in Gazebo simulation before deployment on physical hardware
 - ROS2 Rolling → **Jazzy** migration performed for better package compatibility (Clearpath stack)
 
+### Design Evolution
+
+The final node (`eps_mirror_node.py`) is the result of a two-stage development process:
+
+**Stage 1 — Two separate nodes:**
+- `kinova_mirror_node.py`: routes `JointTrajectory` commands to both simulation and physical robot, normalizing joint names for each
+- `display_to_eps_cmd.py`: bridge node that converts MoveIt2's `DisplayTrajectory` output into executable `JointTrajectory` commands
+
+**Stage 2 — Merged into one:**
+- Both functionalities were combined into `eps_mirror_node.py` to simplify the command flow and reduce communication overhead
+- The unified node handles both MoveIt2 planned trajectories and direct terminal commands through a single execution pipeline
+
 ---
 
 ## Future Work
