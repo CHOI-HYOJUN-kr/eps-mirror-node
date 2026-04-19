@@ -45,10 +45,28 @@ The node also accepts direct `JointTrajectory` commands via `/eps_arm/cmd` for t
 | `eps_mirror_node.py` | Main node — subscribes to MoveIt2 and terminal commands, normalizes joint names, publishes to both robots |
 | `display_to_eps_cmd.py` | Bridge node — converts `DisplayTrajectory` to `JointTrajectory` (integrated into mirror node v2) |
 | `kinova_mirror_node.py` | Earlier version — mirror only, no MoveIt2 display topic support |
-| `eps_sim_launch.py` | Launch file for full simulation (Gazebo + Nav2 + AMCL) |
-| `eps_kinova_launch.py` | Launch file for physical Kinova bringup |
-| `eps_kinova_connect.sh` | Bash script — automates network config and physical robot connection |
+| `eps_sim.launch.py` | Launch file for full simulation (Gazebo + Nav2 + AMCL) |
+| `eps_kinova.launch.py` | Launch file for physical Kinova bringup |
+| `eps_kinova_connect.sh` | Bash script — automates network config and physical robot connection (lab-specific, edit before use) |
 | `robot.yaml` | Clearpath robot configuration (Ridgeback + Kinova Gen3 + IMU) |
+
+### Package Structure
+
+These files belong to the following ROS2 workspace layout:
+
+```
+~/clearpath_ws/
+└── src/
+    ├── eps_bringup/        ← launch files (eps_sim.launch.py, eps_kinova.launch.py)
+    ├── eps_mirror/         ← mirror node (eps_mirror_node.py, display_to_eps_cmd.py)
+    ├── clearpath_*/        ← Clearpath Ridgeback packages
+    ├── moveit2/            ← MoveIt2 motion planning
+    └── ros2_kortex/        ← Kinova Gen3 driver
+~/clearpath/
+    ├── robot.yaml          ← robot configuration
+    ├── warehouse.pgm       ← map file
+    └── warehouse.yaml      ← map metadata
+```
 
 ---
 
@@ -89,7 +107,7 @@ ros2 run eps_mirror mirror_node
 ## Development Notes
 
 - Developed as part of **Team BOB**, EPS 2025, ENIT France
-- Architecture designed by Hyojun Choi; code implemented with AI assistance
+- Architecture, topic-flow design, integration, debugging, and validation by Hyojun Choi; initial code drafting assisted by AI
 - Validated in Gazebo simulation before deployment on physical hardware
 - ROS2 Rolling → **Jazzy** migration performed for better package compatibility (Clearpath stack)
 
