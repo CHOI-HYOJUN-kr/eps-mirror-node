@@ -65,15 +65,26 @@ These files belong to the following ROS2 workspace layout:
 ```
 ~/clearpath_ws/
 └── src/
-    ├── eps_bringup/        ← launch files (eps_sim.launch.py, eps_kinova.launch.py)
-    ├── eps_mirror/         ← mirror node (eps_mirror_node.py, display_to_eps_cmd.py)
-    ├── clearpath_*/        ← Clearpath Ridgeback packages
-    ├── moveit2/            ← MoveIt2 motion planning
-    └── ros2_kortex/        ← Kinova Gen3 driver
+    ├── eps_bringup/            ← launch files (eps_sim.launch.py, eps_kinova.launch.py)
+    ├── eps_mirror/             ← mirror node (eps_mirror_node.py, display_to_eps_cmd.py)
+    ├── clearpath_common/
+    ├── clearpath_nav2_demos/
+    ├── clearpath_simulator/
+    ├── moveit_display_bridge/
+    ├── moveit_msgs/
+    ├── moveit_resources/
+    ├── moveit_task_constructor/
+    ├── moveit_visual_tools/
+    ├── moveit2/
+    ├── moveit2_tutorials/
+    ├── ros2_kortex/            ← Kinova Gen3 driver
+    ├── ros2_robotiq_gripper/
+    ├── rviz_visual_tools/
+    └── serial/
 ~/clearpath/
-    ├── robot.yaml          ← robot configuration
-    ├── warehouse.pgm       ← map file
-    └── warehouse.yaml      ← map metadata
+    ├── robot.yaml              ← robot configuration
+    ├── warehouse.pgm           ← map file
+    └── warehouse.yaml          ← map metadata
 ```
 
 ---
