@@ -152,8 +152,24 @@ ros2 run eps_mirror mirror_node
 - Developed as part of **Team BOB**, EPS 2025, ENIT France.
 - The project was validated in Gazebo simulation before deployment on physical hardware.
 - ROS2 Rolling was initially considered, but the environment was migrated to **ROS2 Jazzy** for better compatibility with the Clearpath stack.
-- Architecture design, topic-flow analysis, system integration, debugging, validation, and final implementation decisions were performed by **Hyojun Choi**.
-- AI tools were used for prototyping support and debugging assistance. Final code decisions, integration, testing, and validation were performed by **Hyojun Choi**.
+
+---
+
+## My Contributions
+
+- **Architecture & integration**: Designed the sim-to-real trajectory routing architecture, identified joint name and controller namespace mismatches through `rqt_graph` topic-flow analysis, and implemented the routing layer.
+- **Code implementation**: Implemented the mirror node, bridge node, and merged v2 node. AI tools were used for early prototyping and debugging support, while architecture design, integration decisions, final implementation, testing, and validation were performed by me.
+- **Hardware integration**: Diagnosed `robot.yaml` crashes by isolating configuration components such as system, sensors, and robot arm settings one by one.
+- **Reproducibility**: Wrote integrated launch files and the `eps_kinova_connect.sh` bash script to standardize the physical robot bringup procedure.
+- **Documentation**: Independently authored a 10-page Setup Guide for next-year EPS students.
+- **Decision-making**: Proposed and coordinated the ROS2 Rolling → Jazzy migration based on Clearpath package compatibility analysis.
+
+---
+
+## Team Credits
+
+- **Display topic concept**: Suggested during a team technical discussion and later used in the bridge node implementation.
+- **Team BOB**: This project was conducted by a 5-member international team: Jasper van Boven, Jelle Ramaker, Hyojun Choi, Leon Dewint, and Krzysztof Koscielniak.
 
 ---
 
