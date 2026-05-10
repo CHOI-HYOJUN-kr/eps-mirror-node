@@ -1,215 +1,52 @@
-# EPS Mirror Node — ROS2 Sim-to-Real Trajectory Mirroring
+# Mobile Collaborative Robot
 
-A ROS2 custom node developed during the **European Project Semester (EPS)** at LGP Laboratory, ENIT (France).  
-This project enables **simultaneous control** of a Gazebo-simulated Kinova Gen3 arm and a physical Kinova Gen3 arm from a single MoveIt2 command.
+EPS Fall 2025 — Team BOB
+LGP Research Lab (ENIT · UTTOP), France
 
----
+A ROS 2 Jazzy stack that integrates a Clearpath Ridgeback mobile base
+and a Kinova Gen3 7-DOF arm, so that the same MoveIt 2 trajectory runs
+on both the Gazebo simulation and the real robot at the same time.
 
-## Background
+## My Contribution (Hyojun Choi)
 
-This project integrates a **Clearpath Ridgeback** mobile platform and a **Kinova Gen3** robotic arm into a unified ROS2 environment.
+Responsible for the Kinova Gen3 side. Proposed and implemented the
+structure of `MirrorNode v2`, which routes trajectories between the
+simulated and real arms, and put together the unified launch files,
+the connection script, the `robot.yaml` stabilization work, and the
+Gazebo-to-real trajectory equivalence check. Also contributed to the
+writing and organization of the Setup Guide. The full reasoning,
+trade-offs, and step-by-step problem solving are documented in
+[**TROUBLESHOOTING.md**](./TROUBLESHOOTING.md).
 
-A key challenge was that the simulated robot and the physical robot use **different joint name conventions**:
+## Repository Layout
 
-| Robot | Joint name format |
-|---|---|
-| Gazebo simulation | `arm_0_joint_1` |
-| Physical Kinova Gen3 | `joint_1` |
-
-This mismatch prevents a single MoveIt2 trajectory from being sent directly to both robots.  
-The **mirror node** solves this problem by subscribing to one trajectory source and publishing commands to both robots with the appropriate joint name format.
-
----
-
-## System Overview
-
-```text
-MoveIt2 (RViz)
-     ↓
-/display_planned_path  (DisplayTrajectory)
-     ↓
-[ mirror_node ]
-     ↓                        ↓
-Gazebo simulated arm     Physical Kinova Gen3
-(arm_0_joint_X)          (joint_X)
-```
-
-The node also accepts direct `JointTrajectory` commands via `/eps_arm/cmd` for terminal-based control.
-
----
-
-## Demo
-
-![EPS Mirror Node Demo](eps_demo.gif)
-
-*MoveIt2 planned trajectory simultaneously executed on Gazebo simulation and physical Kinova Gen3.*
-
----
-
-## Result
-
-- Successfully mirrored a single MoveIt2 planned trajectory to both Gazebo simulation and a physical Kinova Gen3.
-- Resolved joint name and controller namespace mismatches between simulation and real hardware.
-- Built a unified command flow by merging the mirror node and DisplayTrajectory bridge logic into one execution pipeline.
-- Validated the command flow in Gazebo simulation before applying it to the physical robot.
-- Reduced repeated setup effort by organizing launch files, robot configuration, connection scripts, and setup documentation.
-
----
-
-## Key Features
-
-- Subscribes to MoveIt2 `DisplayTrajectory` output and extracts executable trajectory commands.
-- Normalizes joint names between Gazebo simulation and physical Kinova Gen3 hardware.
-- Publishes trajectory commands to both simulation and physical robot controllers.
-- Supports direct terminal-based `JointTrajectory` commands via `/eps_arm/cmd`.
-- Provides launch files and configuration files for reproducible testing.
-
----
-
-## Files
-
-| File | Description |
-|---|---|
-| `eps_mirror_node.py` | Main node — subscribes to MoveIt2 and terminal commands, normalizes joint names, and publishes commands to both robots |
-| `display_to_eps_cmd.py` | Bridge node — converts `DisplayTrajectory` to `JointTrajectory`; later integrated into `eps_mirror_node.py` |
-| `kinova_mirror_node.py` | Earlier version — mirror-only node without MoveIt2 display topic support |
-| `eps_sim.launch.py` | Launch file for full simulation environment, including Gazebo, Nav2, and AMCL |
-| `eps_kinova.launch.py` | Launch file for physical Kinova bringup |
-| `eps_kinova_connect.sh` | Bash script that automates network configuration and physical robot connection; lab-specific and should be edited before reuse |
-| `robot.yaml` | Clearpath robot configuration for Ridgeback, Kinova Gen3, and IMU setup |
-
----
-
-## Package Structure
-
-These files belong to the following ROS2 workspace layout:
-
-```text
-~/clearpath_ws/
-└── src/
-    ├── eps_bringup/            ← launch files: eps_sim.launch.py, eps_kinova.launch.py
-    ├── eps_mirror/             ← mirror node: eps_mirror_node.py, display_to_eps_cmd.py
-    ├── clearpath_common/
-    ├── clearpath_nav2_demos/
-    ├── clearpath_simulator/
-    ├── moveit_display_bridge/
-    ├── moveit_msgs/
-    ├── moveit_resources/
-    ├── moveit_task_constructor/
-    ├── moveit_visual_tools/
-    ├── moveit2/
-    ├── moveit2_tutorials/
-    ├── ros2_kortex/            ← Kinova Gen3 driver
-    ├── ros2_robotiq_gripper/
-    ├── rviz_visual_tools/
-    └── serial/
-
-~/clearpath/
-    ├── robot.yaml              ← robot configuration
-    ├── warehouse.pgm           ← map file
-    └── warehouse.yaml          ← map metadata
-```
-
----
+| Folder | Contents |
+| --- | --- |
+| `src/` | ROS 2 nodes (`mirror_node.py`, `display_to_eps_cmd.py`, …) |
+| `launch/` | Simulation and real-robot bring-up launch files |
+| `scripts/` | Bash helper for connecting to the real Kinova |
+| `config/` | `robot.yaml` (Clearpath robot description) |
+| `assets/` | Graphs, TF tree, demo recordings |
+| `docs/` | Team-level reports (Final Document, Setup Guide, summary) |
 
 ## Environment
 
-- OS: Ubuntu 24.04
-- ROS2: Jazzy Jalisco
-- Simulation: Gazebo / Clearpath Simulator
-- Motion planning: MoveIt2
-- Hardware: Kinova Gen3 7-DoF + Clearpath Ridgeback
-- Language: Python
+- ROS 2 Jazzy
+- Gazebo (Clearpath simulation packages)
+- MoveIt 2
+- Kinova Kortex ROS 2 driver
 
----
-
-## How to Run
-
-### 1. Simulation
+## Run
 
 ```bash
+# Simulation
 ros2 launch eps_bringup eps_sim.launch.py
+
+# Real Kinova
+bash scripts/eps_kinova_connect.sh
+ros2 launch eps_bringup eps_kinova.launch.py
 ```
 
-### 2. Physical Robot
+## Project Period
 
-```bash
-# Edit IFACE to match your network interface before running this script
-chmod +x eps_kinova_connect.sh
-./eps_kinova_connect.sh
-```
-
-### 3. Mirror Node Only
-
-```bash
-ros2 run eps_mirror mirror_node
-```
-
----
-
-## Development Notes
-
-- Developed as part of **Team BOB**, EPS 2025, ENIT France.
-- The project was validated in Gazebo simulation before deployment on physical hardware.
-- ROS2 Rolling was initially considered, but the environment was migrated to **ROS2 Jazzy** for better compatibility with the Clearpath stack.
-
----
-
-## My Contributions
-
-- **Architecture & integration**: Designed the sim-to-real trajectory routing architecture, identified joint name and controller namespace mismatches through `rqt_graph` topic-flow analysis, and implemented the routing layer.
-- **Code implementation**: Implemented the mirror node, bridge node, and merged v2 node. AI tools were used for early prototyping and debugging support, while architecture design, integration decisions, final implementation, testing, and validation were performed by me.
-- **Hardware integration**: Diagnosed `robot.yaml` crashes by isolating configuration components such as system, sensors, and robot arm settings one by one.
-- **Reproducibility**: Wrote integrated launch files and the `eps_kinova_connect.sh` bash script to standardize the physical robot bringup procedure.
-- **Documentation**: Independently authored a 10-page Setup Guide for next-year EPS students.
-- **Decision-making**: Proposed and coordinated the ROS2 Rolling → Jazzy migration based on Clearpath package compatibility analysis.
-
----
-
-## Team Credits
-
-- **Display topic concept**: Suggested during a team technical discussion and later used in the bridge node implementation.
-- **Team BOB**: This project was conducted by a 5-member international team: Jasper van Boven, Jelle Ramaker, Hyojun Choi, Leon Dewint, and Krzysztof Koscielniak.
-
----
-
-## Design Evolution
-
-The final node, `eps_mirror_node.py`, was developed through a two-stage process.
-
-### Stage 1 — Two Separate Nodes
-
-- `kinova_mirror_node.py` routed `JointTrajectory` commands to both the Gazebo simulation and the physical robot while normalizing joint names for each environment.
-- `display_to_eps_cmd.py` converted MoveIt2's `DisplayTrajectory` output into executable `JointTrajectory` commands.
-
-### Stage 2 — Unified Node
-
-- Both functionalities were combined into `eps_mirror_node.py` to simplify the command flow and reduce unnecessary communication overhead.
-- The unified node handles both MoveIt2 planned trajectories and direct terminal commands through a single execution pipeline.
-
----
-
-## Safety and Limitations
-
-- This project was tested in a lab-controlled environment.
-- Gazebo simulation was used before physical robot execution.
-- The current implementation focuses on trajectory mirroring and command routing.
-- Additional safety validation is required before broader deployment, including joint limit checks, emergency stop handling, collision checking, and latency measurement.
-
----
-
-## Future Work
-
-- Reimplement the node in C++ for improved real-time performance.
-- Measure and quantify latency between simulation and physical robot execution.
-- Add joint limit validation before publishing commands.
-- Add safety checks for abnormal trajectories and controller communication failures.
-- Improve documentation for installation, dependency setup, and troubleshooting.
-
----
-
-## Author
-
-**Hyojun Choi**  
-European Project Semester, ENIT France  
-GitHub: [CHOI-HYOJUN-kr](https://github.com/CHOI-HYOJUN-kr)
+2025-09-01 – 2025-12-18 · 30 ECTS · one semester
