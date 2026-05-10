@@ -22,7 +22,7 @@ trade-offs, and step-by-step problem solving are documented in
 
 | Folder | Contents |
 | --- | --- |
-| `src/` | ROS 2 nodes (`mirror_node.py`, `display_to_eps_cmd.py`, …) |
+| `src/` | ROS 2 nodes (`eps_mirror_node.py`, `display_to_eps_cmd.py`, …) |
 | `launch/` | Simulation and real-robot bring-up launch files |
 | `scripts/` | Bash helper for connecting to the real Kinova |
 | `config/` | `robot.yaml` (Clearpath robot description) |
