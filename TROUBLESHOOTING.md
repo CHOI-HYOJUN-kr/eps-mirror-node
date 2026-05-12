@@ -1,7 +1,7 @@
 # Troubleshooting Log
 
 EPS Fall 2025 — Mobile Collaborative Robot (Team BOB)
-LGP Research Lab, ENIT · UTTOP
+ENIT, Tarbes, France · Commissioned by LGP Lab (UTTOP)
 
 A log of the concrete problems I (Hyojun Choi) ran into during the
 project and how they were resolved. Each entry follows the same
