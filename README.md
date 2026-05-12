@@ -7,6 +7,14 @@ A ROS 2 Jazzy stack that integrates a Clearpath Ridgeback mobile base
 and a Kinova Gen3 7-DOF arm, so that the same MoveIt 2 trajectory runs
 on both the Gazebo simulation and the real robot at the same time.
 
+<p align="center">
+  <img src="./assets/eps_demo.gif" alt="Gazebo and real Kinova Gen3 trajectory demo" width="700">
+</p>
+
+<p align="center">
+  Gazebo and real Kinova Gen3 executing equivalent MoveIt 2 trajectories through MirrorNode v2.
+</p>
+
 ## My Contribution (Hyojun Choi)
 
 Responsible for the Kinova Gen3 side. Proposed and implemented the
