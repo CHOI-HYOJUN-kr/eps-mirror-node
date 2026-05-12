@@ -7,7 +7,9 @@ A ROS 2 Jazzy stack that integrates a Clearpath Ridgeback mobile base
 and a Kinova Gen3 7-DOF arm, so that the same MoveIt 2 trajectory runs
 on both the Gazebo simulation and the real robot at the same time.
 
-![demo](https://raw.githubusercontent.com/CHOI-HYOJUN-kr/eps-mirror-node/main/assets/eps_demo.gif)
+<p align="center">
+  <img src="assets/demo.gif" alt="Mobile collaborative robot demo" width="700">
+</p>
 
 ## My Contribution (Hyojun Choi)
 
