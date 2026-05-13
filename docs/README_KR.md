@@ -77,7 +77,7 @@ MoveIt (RViz Plan / Plan+Execute)        터미널 명령
 ros2 launch eps_bringup eps_sim.launch.py
 
 # Real Kinova
-bash scripts/eps_kinova_connect.sh
+IFACE=enp3s0 bash scripts/eps_kinova_connect.sh
 ```
 
 `eps_kinova_connect.sh` script는 PC 네트워크 설정, 로봇 연결 확인, ROS 2 workspace 환경 불러오기, `eps_kinova.launch.py` 실행까지 처리합니다.
