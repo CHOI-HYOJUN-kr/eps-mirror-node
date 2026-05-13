@@ -58,9 +58,9 @@ MoveIt (RViz Plan / Plan+Execute)        Terminal command
 | `scripts/` | `eps_kinova_connect.sh` — automates host network config for the real Kinova |
 | `config/` | `robot.yaml` (Clearpath robot description) |
 | `assets/` | `rosgraph(final).png`, `TF tree.pdf`, `eps_demo.gif` |
-| `docs/` | Team-level reports (Final Document, Setup Guide, summary) |
+| `docs/` | Korean versions: README, TROUBLESHOOTING, and project summary |
 
-> Note: The `.launch.py` files are written assuming they live inside a ROS 2 package named `eps_bringup` in a Colcon workspace. To run the commands below, place them inside your own `eps_bringup` package. The Setup Guide in `docs/` explains the full workspace setup.
+> Note: The `.launch.py` files are written assuming they live inside a ROS 2 package named `eps_bringup` in a Colcon workspace. To run the commands below, place them inside your own `eps_bringup` package.
 
 ## Environment
 
