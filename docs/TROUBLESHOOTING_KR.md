@@ -1,222 +1,151 @@
-# EPS Troubleshooting Log
+# 트러블슈팅 & 엔지니어링 결정 기록
 
-EPS Fall 2025 — Mobile Collaborative Robot (Team BOB)
-LGP Research Lab, ENIT · UTTOP
+본 문서는 EPS Mobile Collaborative Robot 프로젝트의 sim-to-real 통합을 구축하는 과정에서 발생한 주요 문제들과, 필요할 때 팀 논의를 거쳐 해결한 과정을 기록합니다. 다음 EPS 학기 학생, 그리고 코드를 읽으며 *왜 이런 구조인지* 알고 싶은 분들을 위해 작성됐습니다.
 
-이 문서는 프로젝트 진행 중 본인(Hyojun Choi)이 마주한 문제와 해결 과정을
-기록한 로그입니다. 각 항목은 **문제 정의 → 시행착오 → 해결 → 결과**
-순서로 정리했습니다.
+**컨텍스트:** 저는 ROS 2 경험이 전혀 없는 상태에서 이 프로젝트에 참여했습니다. 아래의 아키텍처 결정들은 제가 직접 내린 것입니다. 코드 자체는 대부분 AI 보조로 초안을 작성한 뒤 제가 검토하고 테스트했으며, 우선 Gazebo에서, 그다음 실물 로봇에서 검증했습니다.
 
 ---
 
-## 목차
+## 프로젝트 컨텍스트: Plan A에서 Plan B로
 
-1. [ROS 2 배포판 선정 (Rolling → Jazzy)](#1-ros-2-배포판-선정-rolling--jazzy)
-2. [Joint 이름·Controller 네임스페이스 불일치](#2-joint-이름controller-네임스페이스-불일치)
-3. [MoveIt 출력을 양쪽 로봇으로 동시에 흘려보내기](#3-moveit-출력을-양쪽-로봇으로-동시에-흘려보내기)
-4. [Mirror·Bridge 노드 통합](#4-mirrorbridge-노드-통합)
-5. [robot.yaml 크래시 원인 추적](#5-robotyaml-크래시-원인-추적)
-6. [실행 절차 분산 → 통합 launcher·bash 스크립트](#6-실행-절차-분산--통합-launcherbash-스크립트)
-7. [실물 연동 시의 미세 타이밍 차이](#7-실물-연동-시의-미세-타이밍-차이)
+원래 Plan A는 완전한 물리 통합이었습니다: 실물 Ridgeback과 실물 Kinova Gen3를 단일 ROS 2 인터페이스로 제어하는 것.
 
----
+학기 도중 실물 Ridgeback이 배터리 문제로 사용 불가능해졌고, 우리 일정 안에서는 해결할 수 없었습니다. 팀과 슈퍼바이저는 Plan B로 전환하기로 결정했습니다: 핵심 trajectory 라우팅 아키텍처는 그대로 유지하되, 시뮬레이션 Ridgeback과 실물 Kinova Gen3를 사용해 통합 시스템을 검증하는 방식입니다.
 
-## 1. ROS 2 배포판 선정 (Rolling → Jazzy)
+이 결정은 팀과 슈퍼바이저 레벨에서 내려진 것이며 제가 단독으로 결정한 일이 아닙니다. 그러나 이후 제 작업 범위에 영향을 미쳤습니다:
 
-**문제 정의.** 초기 요구사항은 ROS 2 Rolling을 기준으로 잡혀 있었지만,
-Rolling은 롤링 릴리스 특성상 패키지 호환성이 흔들리는 시점이 잦았습니다.
-특히 Clearpath 시뮬레이션 패키지에서 의존성 충돌이 반복적으로
-재현됐습니다.
+- Kinova sim-to-real mirroring 작업은 변경 없이 유지됐고 — 이것이 제 담당이자 핵심 기술 기여로 그대로 남았습니다.
+- 실물 Ridgeback 제어와 base 위에서의 mobile manipulation은 이번 학기 범위에서 제외됐습니다.
+- Gazebo 시뮬레이션이 Ridgeback 측의 표준(canonical) 환경이 됐고, 실물 Kinova는 동일한 trajectory 라우팅 로직이 실제 하드웨어를 구동할 수 있는지 검증하는 데 사용됐습니다.
 
-**시행착오.** 처음에는 Rolling을 그대로 두고 패키지별로 버전을 고정해
-우회하는 방향을 시도했지만, 한 패키지가 안정화되면 다른 패키지가
-깨지는 식으로 문제가 옮겨갔습니다. MoveIt 쪽은 Rolling에서도 큰 문제가
-없었으나, Clearpath 쪽 손상이 누적된다고 판단했습니다.
-
-**해결.** 안정 LTS 라인인 ROS 2 Jazzy로 환경을 전환할 것을 팀에 제안했고,
-호환성 검증 결과를 정리해 팀원들과 합의를 이뤘습니다. 전환 이후 빌드와
-런치 단계에서 발생하던 무작위 실패가 크게 줄었습니다.
-
-**결과.** 이후 두 달간의 개발에서 환경 자체가 원인이 되는 빌드 실패는
-거의 발생하지 않았고, 디버깅 시간이 코드와 통합 이슈에 집중될 수 있었
-습니다.
+README가 본 프로젝트를 완전한 물리 통합이 아닌 "시뮬레이션 Ridgeback + 실물 Kinova Gen3"로 기술하는 이유가 여기에 있습니다. 아래에서 다루는 mirror 노드, MoveIt 2 통합, launch 통합, 연결 워크플로우는 모두 Plan B 하에서 그대로 유효합니다.
 
 ---
 
-## 2. Joint 이름·Controller 네임스페이스 불일치
+## 1. Sim과 Real Kinova가 동일한 MoveIt 2 명령을 받아들이지 않음
 
-**문제 정의.** 같은 Kinova Gen3인데도 시뮬레이션과 실물에서 받는 메시지
-스펙이 달랐습니다.
+**증상.** 실물 Kinova Gen3를 성공적으로 움직이게 한 MoveIt 2 trajectory가 Ridgeback에 마운트된 시뮬레이션 Kinova는 움직이지 못했고, 반대도 마찬가지였습니다.
 
-- 실물: `joint_1`, `joint_2`, … / 컨트롤러는 `/joint_trajectory_controller/...`
-- 시뮬: `arm_0_joint_1`, … / 컨트롤러는 `/r100_0000/arm_0_joint_trajectory_controller/...`
+**근본 원인.** 두 가지 불일치가 동시에 존재했습니다:
 
-`arm_0_` 접두어와 네임스페이스는 Gazebo에서 여러 로봇이 동시에
-존재할 수 있도록 구분하기 위한 것이었지만, 동일한 trajectory를 그대로
-보내면 한쪽은 받아주고 다른 한쪽은 무시하는 상황이 반복됐습니다.
+- **Joint 이름**
+  - Sim: `arm_0_joint_1`, `arm_0_joint_2`, ...
+  - Real: `joint_1`, `joint_2`, ...
+- **Controller 토픽 namespace**
+  - Sim: `/r100_0000/arm_0_joint_trajectory_controller/joint_trajectory`
+  - Real: `/joint_trajectory_controller/joint_trajectory`
 
-**시행착오.** 처음에는 양쪽을 따로 publish하는 두 개의 스크립트로
-나눠보았지만, 같은 동작을 두 번 보내야 하는 구조가 되면서 sim·real 간
-미묘한 타이밍 어긋남이 생겼습니다. MoveIt 쪽 launch 파라미터로 강제
-remap도 시도했지만, 이는 컨트롤러 spec 충돌을 야기했습니다.
+시뮬레이션 arm은 Ridgeback의 namespace(`/r100_0000/...`) 안에 위치합니다. 이는 Clearpath의 정상 동작 방식으로 — namespacing을 통해 여러 로봇이 Gazebo 내에서 토픽 충돌 없이 공존할 수 있게 합니다. 실물 Kinova에는 그런 namespace가 없습니다.
 
-**해결.** 팀 회의에서 "단일 입력 토픽 + 중간 라우팅 노드" 방향을 제안하고
-합의했습니다. `/eps_arm/cmd` 라는 통합 입력 토픽을 두고, `MirrorNode`
-가 이를 받아 시뮬레이션용에는 접두어를 붙여, 실물용에는 접두어를
-제거해 양쪽 컨트롤러로 동시에 publish하도록 구성했습니다. 노드 구조는
-공식 ROS 2 문서·메시지 정의를 기준으로 직접 검토하며 코드를 작성했고,
-초안을 거쳐 반복 테스트했습니다.
+**Remap만으로는 부족했던 이유.** 처음에는 `ros2 topic remap`이나 launch 파일 파라미터 override로 해결하려 했습니다. 그러나 joint 이름은 토픽 이름이 아니라 `JointTrajectory` 메시지 **내부**에 들어있기 때문에 remap으로는 변경할 수 없었습니다. 메시지 자체를 다시 작성하는 노드가 필요했습니다.
 
-**결과.** 사용자는 `/eps_arm/cmd` 한 곳에만 trajectory를 publish하면
-되었고, 같은 명령이 시뮬·실물에 동기적으로 전달되었습니다. 이후의
-모든 상위 모듈(테스트 스크립트, MoveIt 연동)이 이 단일 인터페이스를
-기반으로 일관되게 붙을 수 있었습니다.
+**해결.** 다음을 수행하는 커스텀 mirror 노드:
+
+1. 단일 trajectory 입력 구독.
+2. `arm_0_` prefix를 추가해 sim controller로 발행.
+3. `arm_0_` prefix를 제거해 real controller로 발행.
+4. 위 두 동작을 동시 수행.
+
+`eps_mirror_node.py` (MirrorNode v2)에 구현돼 있습니다.
 
 ---
 
-## 3. MoveIt 출력을 양쪽 로봇으로 동시에 흘려보내기
+## 2. Mirror 대상 MoveIt 2 토픽 선정
 
-**문제 정의.** 위 라우팅 구조는 스크립트 기반 명령에는 잘 동작했지만,
-RViz의 *Plan + Execute* 버튼에서 나오는 MoveIt trajectory는
-`/eps_arm/cmd`로 직접 들어오지 않았습니다. MoveIt이 실제 실행 명령을
-보내는 컨트롤러 토픽은 시뮬·실물 한쪽에만 묶이는 구조였기 때문입니다.
+**문제.** MoveIt 2는 다양한 출력 채널을 노출합니다: `FollowJointTrajectory` action, planning scene, 내부 state 토픽, `/display_planned_path` 등. 어느 것을 source로 사용해야 할지 명확하지 않았습니다.
 
-**시행착오.** MoveIt의 `controller.yaml` 자체를 양쪽으로 동시 매핑해보려
-했지만, 컨트롤러 매니저가 같은 joint set에 두 개의 컨트롤러가 붙는
-것을 허용하지 않았습니다. 어떤 토픽이 MoveIt에서 빠져나오고, 그중
-어떤 게 실제로 사용 가능한지부터 정리할 필요가 있었습니다.
+**선정 과정.** MoveIt 2 + Gazebo 전체 스택을 실행한 뒤 `rqt_graph`로 실시간 노드 그래프를 검사했습니다. RViz에서 **Plan**과 **Plan + Execute**를 눌렀을 때 계획된 motion이 어디에 나타나는지 추적했습니다. 다음 세 조건을 만족하는 토픽을 찾았습니다:
 
-**해결.** `rqt_graph`로 MoveIt이 publish/subscribe하는 토픽을 그려보고,
-RViz의 시각화에 사용되는 `/display_planned_path` (`DisplayTrajectory`)
-를 활용하자는 팀원의 아이디어를 적용했습니다. `DisplayToEpsCmd`
-노드를 만들어 `/display_planned_path`를 구독하고, 첫 번째
-`RobotTrajectory`의 `JointTrajectory`만 추출해 joint name을 정규화한
-뒤 `/eps_arm/cmd`로 변환·재발행하도록 했습니다.
+- 항상 **최종** trajectory를 담을 것 (중간 상태가 아닐 것).
+- Plan **및** Plan+Execute 모드 모두에서 발행될 것.
+- 그대로 재발행 가능한 형태로 데이터를 담을 것.
 
-**결과.** RViz에서 *Plan + Execute*를 누르는 것만으로 시뮬레이션과
-실물 Kinova가 동시에 같은 경로를 실행했습니다. 시연 환경에서도
-별도의 별도 명령 흐름 없이 MoveIt 한 곳에서 양쪽을 동기 제어할 수
-있었습니다.
+`/display_planned_path`가 위 세 조건을 모두 만족했습니다. MoveIt이 RViz에서 계획된 경로를 시각화하는 데 사용하는 토픽이며, 우리 셋업에서는 `JointTrajectory`로 변환해 양쪽 controller로 라우팅할 수 있는 실용적인 trajectory source 역할을 했습니다.
+
+**결과.** MirrorNode v2는 `/display_planned_path`를 주 입력으로 구독하며, 터미널 테스트용으로 수동 `/eps_arm/cmd` 입력도 받습니다.
+
+**크레딧.** "display 측" 토픽을 사용하자는 아이디어는 팀 논의 중 한 팀원에게서 나왔습니다. 저는 `rqt_graph`로 이를 검증한 뒤, 그 아이디어를 기반으로 bridge / mirror 구조를 구축했습니다.
 
 ---
 
-## 4. Mirror·Bridge 노드 통합
+## 3. `robot.yaml`이 Gazebo launch 시 크래시를 일으킴
 
-**문제 정의.** 위 두 단계의 결과로 `MirrorNode`(시뮬↔실물 라우팅)와
-`Bridge` 역할의 `DisplayToEpsCmd`(MoveIt → unified cmd) 두 개의
-노드가 동시에 실행되는 구조가 되었습니다. 메시지가 한 번 더
-홉(hop)을 거치는 구조였고, 노드가 늘어날수록 launch·디버깅·로그
-추적이 복잡해졌습니다.
+**증상.** Clearpath `robot.yaml`을 수정해 Ridgeback 상단에 Kinova Gen3를 마운트하고 센서를 설정하던 중, Gazebo가 시작 시 크래시했습니다. 에러 메시지는 특정 라인을 명확히 지목하지 않았습니다.
 
-**시행착오.** 처음에는 두 노드를 그대로 두고 launch 파일에서 묶는
-방향만 검토했지만, 그래도 한 메시지가
-`/display_planned_path → /eps_arm/cmd → 양쪽 컨트롤러` 로 두 단계를
-거쳐야 한다는 점은 그대로였습니다.
+**진단 방법.** YAML을 깨끗하게 실행되는 최소 구성(base만, manipulator 없음, 센서 없음)으로 축소한 뒤, 블록을 하나씩 다시 추가했습니다. 크래시가 발생할 때마다 직전에 추가한 블록이 원인이거나, 이미 존재하던 항목과 충돌하는 것이었습니다.
 
-**해결.** 두 노드의 책임을 다시 정의했습니다. *MoveIt 입력*과 *수동 명령
-입력*은 결국 같은 정규화·분배 로직으로 끝나기 때문에, 두 입력을 모두
-받아 동일한 `normalize_and_publish()`를 호출하는 단일 노드(`MirrorNode v2`)
-로 합쳤습니다. 입력 채널은 두 개(`/display_planned_path`,
-`/eps_arm/cmd`), 출력은 두 개(시뮬 컨트롤러, 실물 컨트롤러)로 유지
-했습니다.
+**결과.** 안정적인 최소 설정:
 
-**결과.** 노드 그래프가 한 단계 단순해졌고, launch 파일에서 띄울
-프로세스가 줄었습니다. 정량 측정은 하지 않았지만, 시연 직전 환경에서
-*Plan + Execute*에 대한 응답이 체감상 더 일관됐습니다. 무엇보다 이후
-디버깅 시 의심 지점이 한 노드로 좁혀졌습니다.
+- `top_link`에 마운트된 Kinova Gen3 7-DOF arm,
+- Microstrain IMU.
+
+2D LiDAR 블록은 현재 주석 처리돼 있습니다 — 이슈 #6 참조.
 
 ---
 
-## 5. robot.yaml 크래시 원인 추적
+## 4. ROS 2 Rolling이 우리 스택에서 불안정
 
-**문제 정의.** Clearpath 시뮬레이션은 `robot.yaml`을 통해 베이스, 센서,
-탑재 장비를 선언합니다. 여기에 Kinova Gen3와 IMU 등을 추가하는
-과정에서, 빌드 자체는 통과하지만 시뮬레이션 시작 시 TF 누락,
-컨트롤러 spawn 실패, 또는 시뮬 자체 크래시가 비결정적으로
-발생했습니다.
+**증상.** 프로젝트 브리프는 원래 ROS 2 Rolling을 명시했습니다. 초기 셋업 몇 주 동안 빌드가 반복적으로 깨졌고, 특히 Clearpath 패키지가 문제였습니다. Rolling은 LTS가 아니며 의존성이 사용자 코드 아래에서 계속 변하기 때문입니다.
 
-**시행착오.** 한 번에 전체 구성을 적어 넣고 동작 여부를 보는 방식은
-실패 원인이 어디에 있는지 알려주지 않았습니다. 로그도 일관되지 않아
-재현 자체가 어려웠습니다.
+**결정.** 전체 스택을 ROS 2 Jazzy (당시 LTS)로 마이그레이션할 것을 제안했습니다. MoveIt 2는 우리 환경에서 Rolling 위에서도 무리 없었지만, Clearpath 호환성이 주된 이유였습니다. 팀과 논의 후 모든 환경을 Jazzy로 이전했습니다.
 
-**해결.** 구성을 부품 단위로 줄였다가 하나씩 다시 추가하는 식으로
-이등분 디버깅을 진행했습니다.
-
-1. 베이스 플랫폼만 → `tf2_echo`로 TF 트리, 컨트롤러 매니저 상태 확인
-2. IMU 추가 → 다시 검증
-3. 암 마운트 추가 → 검증
-4. Kinova Gen3 추가 → 검증
-5. 그리퍼 추가 → 검증
-
-각 단계에서 깨지면 그 단계의 YAML 블록만 변경 사항이므로 원인이
-명확했습니다.
-
-**결과.** 프로젝트 후반부까지 안정적으로 사용한 `robot.yaml` 구성을
-확정했고, 이후 다른 팀원이 동일한 파일을 기반으로 환경을 재현할 수
-있었습니다.
+**Trade-off.** Rolling 전용 기능 일부는 사용할 수 없게 됐지만, 4개월 일정을 고려하면 안정성이 더 중요했습니다.
 
 ---
 
-## 6. 실행 절차 분산 → 통합 launcher·bash 스크립트
+## 5. 파편화된 launch 파일이 너무 많음
 
-**문제 정의.** 실물 시연 직전, 환경을 띄우려면 4~5개의 터미널을 정해진
-순서로 열어야 했고, IP 설정·커넥션 확인·MoveIt·MirrorNode를 사람이
-순서대로 실행해야 했습니다. 발표 직전에는 이게 가장 큰 리스크였습니다.
+**증상.** 각 서브시스템(Gazebo, AMCL, Nav2, Kortex, mirror 노드, `cmd_vel` relay)이 각자의 launch 파일을 갖고 있었습니다. 전체 시스템을 시작하려면 터미널을 4~5개 열어야 했습니다.
 
-**시행착오.** 별칭(alias) 모음으로 줄여보았지만, 한 단계가 실패하면
-어디서부터 다시 시작해야 하는지 알기 어려웠습니다.
+**해결.** 모든 것을 두 개의 launch 파일로 통합:
 
-**해결.**
+- `eps_sim.launch.py` — 전체 시뮬레이션: Gazebo + AMCL + 정적 `map → odom` TF + Nav2 + `cmd_vel` relay.
+- `eps_kinova.launch.py` — 실물 로봇: Kortex 드라이버 + MirrorNode v2.
 
-- 시뮬레이션 측: `eps_sim.launch.py` 하나로 Gazebo + AMCL +
-  `map → odom` static TF + Nav2 + `cmd_vel` 릴레이까지 묶었습니다.
-- 실물 측: `eps_kinova.launch.py`에 Kortex 드라이버와 `MirrorNode v2`
-  파라미터를 함께 정의했습니다.
-- 연결 단계: `eps_kinova_connect.sh`로 IP 설정과 헬스 체크를 한
-  스크립트로 모았습니다.
-
-**결과.** 실행 절차가 *bash 스크립트 한 번 + ros2 launch 두 번*으로
-줄었습니다. 시연 중 사람이 입력 실수로 흐름을 깨뜨릴 가능성이 크게
-줄었고, 다음 기수 학생들이 동일 스택을 재현할 때의 진입 장벽도 낮춰
-졌습니다.
+또한 실물 로봇 launch 이전 호스트 측 네트워크 설정(방화벽 비활성화, 올바른 인터페이스에 static IP 할당, ping으로 연결 검증)을 처리하는 `eps_kinova_connect.sh`도 작성했습니다. 새 사용자들이 가장 자주 실수하던 부분입니다.
 
 ---
 
-## 7. 실물 연동 시의 미세 타이밍 차이
+## 6. LiDAR 플러그인 추가 시 Gazebo 크래시 (미해결)
 
-**문제 정의.** 시뮬과 실물을 동시에 구동하면서 반복 테스트할 때,
-두 로봇의 움직임 사이에 간헐적으로 미세한 차이가 관찰됐습니다.
-큰 충돌·실패는 아니었지만, 같은 명령에 대해 약간의 지연 또는
-프로파일 차이가 보였습니다.
+**증상.** `robot.yaml`에 Hokuyo 2D LiDAR 블록을 manipulator 블록과 동일한 스타일로 추가하자 Gazebo가 launch 시 segfault.
 
-**시행착오.** 프로젝트 일정상 원인을 정량적으로 분리해 분석할 시간은
-확보하지 못했습니다. 메시지 처리 큐, QoS 설정, 실시간성 부족, 호스트
-부하, 실물 측 컨트롤러 내부 보간 등 후보가 많아 한 번에 결론짓기
-어려웠습니다.
+**시도한 것.**
 
-**해결(이번 학기 범위 안에서).** 시연 시나리오에서 영향을 줄 수 있는
-부분만 우선 안정화했습니다. 명령 발행 주기를 일정하게 유지하고,
-시뮬·실물 양쪽에 동시에 같은 메시지가 가도록 한 라우팅 구조를 그대로
-유지했습니다. 시연·검증은 우선 Gazebo에서 동작을 확인한 뒤 실물로
-옮기는 절차를 고정했습니다.
+- 다양한 sensor frame 파라미터,
+- 다양한 마운팅 위치,
+- URDF 생성 부분의 토글,
+- `/scan`의 namespace prefix 재확인.
 
-**한계 인정.** 이 차이의 원인이 메시지 처리 방식인지, 실행 환경 부하인지,
-혹은 그 외 요인인지에 대한 정량 분석은 하지 못했습니다.
+위 어떤 것도 안정적인 Gazebo launch를 만들어내지 못했습니다.
 
-**이후.** 귀국 후 ROS 2와 C++을 다시 학습하면서, 같은 종류의 동기·실행
-이슈를 다른 언어·실행 구조에서 어떻게 다루는지 비교해 보고 있습니다.
+**상태.** 미해결. LiDAR 블록은 `robot.yaml`에서 주석 처리된 상태로 남겨뒀습니다. 이 문제가 해결되기 전까지는 시뮬레이션상 완전한 Nav2 자율주행에 제약이 있습니다.
+
+**다음 팀을 위한 힌트.** 크래시는 config 포맷 에러가 아니라 플러그인 측 segfault로 보였습니다. 시도해볼 만한 것:
+
+- 다른 Clearpath LiDAR 모델 항목,
+- Gazebo classic 대신 Gz Sim (Ignition) sensor plugin 경로,
+- 최소한의 standalone URDF 테스트로 플러그인을 나머지 스택에서 격리.
 
 ---
 
-## 회고
+## 7. 통신 지연 (인정된 한계)
 
-가장 크게 배운 것은 *문제를 잘게 쪼개는 습관*이었습니다. `robot.yaml`
-처럼 한 번에 거대한 설정을 적어 넣고 결과만 보는 방식은 거의 항상
-원인을 가렸고, 부품 단위로 조립하면서 검증하는 방식이 훨씬 빠르게
-끝났습니다. 노드 구조 역시 두 개를 합칠 때보다도, 합치기 *전*에 두
-입력의 책임을 같은 함수로 정의해두었던 것이 통합을 단순하게 만들었
-습니다.
+실물 로봇 테스트를 반복하던 중, 같은 trajectory를 실행할 때 시뮬레이션 arm과 실물 arm 사이에 미세한 timing 차이를 가끔 관찰했습니다.
 
-또 한 가지는 *통합 인터페이스 하나*의 힘이었습니다. `/eps_arm/cmd`
-라는 단일 토픽을 정한 이후의 모든 작업(MoveIt 연동, 노드 통합, launch
-정리)은 이 인터페이스를 중심으로 자연스럽게 정렬됐습니다.
+**솔직히 밝히자면:** 학기 중에 적절한 도구로 이를 정량 측정하지는 못했습니다. 우선순위는 통합을 end-to-end로 동작시키는 것이었습니다. 지금 떠올릴 수 있는 가능한 원인들:
+
+- Mirror 노드 안의 Python 인터프리터 오버헤드,
+- Publisher 측 ROS 2 QoS / 큐 설정,
+- Gazebo와 실물 로봇 스택을 함께 실행할 때의 호스트 시스템 부하.
+
+이를 향후 과제로 남겨두고, 다음 iteration에서 정량 측정과 개선을 진행하기 위해 ROS 2 C++ 학습을 시작했습니다.
+
+---
+
+## 다음에 다르게 할 것
+
+- 마지막 주가 아니라 첫날부터 end-to-end 지연시간 측정.
+- Joint 이름 정규화 로직에 대한 단위 테스트 추가. 현재는 전체 스택 실행을 통해서만 테스트되고 있음.
+- Mirror 노드에 안전 검사 추가 (예: 모델과 joint 개수가 일치하지 않는 trajectory 거부).
+- 성능 향상 및 ROS 2 C++ API 학습 목적으로 mirror 노드를 C++로 재구현 시도.
