@@ -6,6 +6,22 @@ This document records the main problems I ran into while building the sim-to-rea
 
 ---
 
+## Project context: from Plan A to Plan B
+
+The original Plan A was full physical integration: the real Ridgeback plus the real Kinova Gen3, controlled through a single ROS 2 interface.
+
+Partway through the semester, the physical Ridgeback became unusable due to a battery issue that could not be resolved within our timeline. The team, together with the supervisors, decided to switch to Plan B: keep the same software architecture, but validate the integrated system using a simulated Ridgeback plus the physical Kinova Gen3.
+
+This decision was made at the team and supervisor level, not by me alone, but it shaped the rest of my work:
+
+- The Kinova sim-to-real mirroring task stayed unchanged — this is what I was responsible for, and it remained the core technical contribution.
+- Physical Ridgeback control and on-base mobile manipulation were dropped from this semester's scope.
+- The Gazebo simulation became the canonical environment for the Ridgeback side, and the physical Kinova was used to validate that real-robot execution still matched the simulated behavior.
+
+This is the reason the README describes the project as "simulated Ridgeback + physical Kinova Gen3" rather than full physical integration. The mirror node, MoveIt 2 integration, launch consolidation, and connection workflow described below all remained valid under Plan B.
+
+---
+
 ## 1. Sim and real Kinova did not accept the same MoveIt 2 command
 
 **Symptom.** A MoveIt 2 trajectory that successfully moved the real Kinova Gen3 did not move the simulated Kinova mounted on the Ridgeback. The reverse was also true.
