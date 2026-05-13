@@ -11,7 +11,7 @@ ENIT, Tarbes, France · LGP Lab (UTTOP) 의뢰 프로젝트
 
 ## 담당 기여 (최효준)
 
-저는 Kinova Gen3 통합 파트를 담당했습니다. 구체적으로는 sim-to-real trajectory 라우팅 아키텍처, joint 이름 정규화, `rqt_graph`를 활용한 MoveIt 2 토픽 분석, launch 파일 통합, 실물 로봇 연결 워크플로우를 맡았습니다.
+저는 Kinova Gen3 통합 파트를 담당했습니다. 구체적으로는 시뮬레이션과 실물 로봇 사이의 trajectory 전달 구조, joint 이름 정규화, `rqt_graph`를 활용한 MoveIt 2 토픽 분석, launch 파일 통합, 실물 로봇 연결 워크플로우를 맡았습니다.
 
 이 프로젝트는 제가 처음 수행한 로봇 프로젝트였습니다. 그래서 학기 중에 ROS 2를 처음부터 학습하며 진행했습니다. 코드 초안 작성 속도를 높이기 위해 AI 도구를 활용했지만, 아키텍처 설계, 토픽 선정, 메시지 흐름 검증, Gazebo 우선 테스트, 실물 로봇 검증은 제가 직접 수행했습니다.
 
@@ -28,7 +28,7 @@ ENIT, Tarbes, France · LGP Lab (UTTOP) 의뢰 프로젝트
 
 - **`robot.yaml` crash를 디버깅했습니다.** 항목을 하나씩 제거하며 launch crash가 멈추는 지점을 좁혔고, 이후 안정적으로 동작하는 최소 설정을 다시 구성했습니다.
 
-- **통합 launch 파일**인 `eps_sim.launch.py`, `eps_kinova.launch.py`와, 실물 로봇 연결 전 host network를 설정하는 **bash script**인 `eps_kinova_connect.sh`를 작성했습니다.
+- **통합 launch 파일**인 `eps_sim.launch.py`, `eps_kinova.launch.py`와, 실물 로봇 연결 전 PC 네트워크를 설정하는 **bash script**인 `eps_kinova_connect.sh`를 작성했습니다.
 
 - 다음 EPS 기수 학생들이 동일한 환경을 재현할 수 있도록 **팀 Setup Guide를 작성했습니다.**
 
@@ -80,7 +80,7 @@ ros2 launch eps_bringup eps_sim.launch.py
 bash scripts/eps_kinova_connect.sh
 ```
 
-`eps_kinova_connect.sh` script는 host network 설정, robot connection 확인, ROS 2 workspace source, `eps_kinova.launch.py` 실행까지 처리합니다.
+`eps_kinova_connect.sh` script는 host network 설정, 로봇 연결 확인, ROS 2 workspace 환경 불러오기, `eps_kinova.launch.py` 실행까지 처리합니다.
 
 ## 프로젝트 기간
 
