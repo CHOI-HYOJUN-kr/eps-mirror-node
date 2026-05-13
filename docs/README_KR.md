@@ -18,7 +18,7 @@ ENIT, Tarbes, France · LGP Lab (UTTOP) 의뢰 프로젝트
 구체적으로 수행한 작업은 다음과 같습니다.
 
 - **Sim ↔ Real 불일치 문제를 발견했습니다.**
-- Ridgeback에 마운트된 시뮬레이션 Kinova와 실물 Kinova는 서로 다른 joint 이름 prefix(`arm_0_joint_X` vs `joint_X`)와 서로 다른 controller namespace(`/r100_0000/arm_0_joint_trajectory_controller/...` vs `/joint_trajectory_controller/...`)를 사용하고 있었습니다. 이 문제를 팀에 공유했고, 두 문제를 동시에 해결하기 위해 custom ROS 2 node를 두는 방식이 가장 깔끔하다고 판단해 팀과 합의했습니다.
+  Ridgeback에 마운트된 시뮬레이션 Kinova와 실물 Kinova는 서로 다른 joint 이름 prefix(`arm_0_joint_X` vs `joint_X`)와 서로 다른 controller namespace(`/r100_0000/arm_0_joint_trajectory_controller/...` vs `/joint_trajectory_controller/...`)를 사용하고 있었습니다. 이 문제를 팀에 공유했고, 두 문제를 동시에 해결하기 위해 custom ROS 2 node를 두는 방식이 가장 깔끔하다고 판단해 팀과 합의했습니다.
 
 - **Mirror 대상으로 사용할 MoveIt 2 토픽을 선정했습니다.** MoveIt 2는 여러 토픽을 발행합니다. 저는 RViz에서 **Plan**과 **Plan + Execute**를 눌렀을 때 계획된 motion이 어디에 나타나는지 `rqt_graph`로 추적했습니다. 그 결과 `/display_planned_path`를 양쪽 controller로 라우팅하기에 적합한 trajectory source로 선정했고, 이를 `JointTrajectory`로 변환해 사용할 수 있도록 구성했습니다.
 
