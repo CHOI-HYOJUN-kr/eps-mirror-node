@@ -11,20 +11,20 @@ ENIT, Tarbes, France · LGP Lab (UTTOP) 의뢰 프로젝트
 
 ## 담당 기여 (최효준)
 
-저는 Kinova Gen3 통합 파트를 담당했습니다. 구체적으로는 시뮬레이션과 실물 로봇 사이의 trajectory 전달 구조, joint 이름 정규화, `rqt_graph`를 활용한 MoveIt 2 토픽 분석, launch 파일 통합, 실물 로봇 연결 워크플로우를 맡았습니다.
+저는 Kinova Gen3 통합 파트를 담당했습니다. 구체적으로는 시뮬레이션과 실물 로봇 사이의 trajectory 전달 구조, joint 이름 정규화, `rqt_graph`를 활용한 MoveIt 2 토픽 분석, launch 파일 통합, 실물 로봇 연결 과정 정리를 맡았습니다.
 
-이 프로젝트는 제가 처음 수행한 로봇 프로젝트였습니다. 그래서 학기 중에 ROS 2를 처음부터 학습하며 진행했습니다. 코드 초안 작성 속도를 높이기 위해 AI 도구를 활용했지만, 아키텍처 설계, 토픽 선정, 메시지 흐름 검증, Gazebo 우선 테스트, 실물 로봇 검증은 제가 직접 수행했습니다.
+이 프로젝트는 제가 처음 수행한 로봇 프로젝트였습니다. 그래서 학기 중에 ROS 2를 처음부터 학습하며 진행했습니다. 코드 초안 작성 속도를 높이기 위해 AI 도구를 활용했지만, 구조 설계, 토픽 선정, 메시지 흐름 검증, Gazebo 우선 테스트, 실물 로봇 검증은 제가 직접 수행했습니다.
 
 구체적으로 수행한 작업은 다음과 같습니다.
 
-- **Sim ↔ Real 불일치 문제를 발견했습니다.** Ridgeback에 마운트된 시뮬레이션 Kinova와 실물 Kinova는 서로 다른 joint 이름 prefix(`arm_0_joint_X` vs `joint_X`)와 서로 다른 controller namespace(`/r100_0000/arm_0_joint_trajectory_controller/...` vs `/joint_trajectory_controller/...`)를 사용하고 있었습니다. 이 문제를 팀에 공유했고, 두 문제를 동시에 해결하기 위해 custom ROS 2 node를 두는 방식이 가장 깔끔하다고 판단해 팀과 합의했습니다.
+- **Sim ↔ Real 불일치 문제를 발견했습니다.** Ridgeback에 마운트된 시뮬레이션 Kinova와 실물 Kinova는 서로 다른 joint 이름 prefix(`arm_0_joint_X` vs `joint_X`)와 서로 다른 controller namespace(`/r100_0000/arm_0_joint_trajectory_controller/...` vs `/joint_trajectory_controller/...`)를 사용하고 있었습니다. 이 문제를 팀에 공유했고, 두 문제를 동시에 해결하기 위해 별도의 ROS 2 node를 두는 방식이 가장 깔끔하다고 판단해 팀과 합의했습니다.
 
-- **Mirror 대상으로 사용할 MoveIt 2 토픽을 선정했습니다.** MoveIt 2는 여러 토픽을 발행합니다. 저는 RViz에서 **Plan**과 **Plan + Execute**를 눌렀을 때 계획된 motion이 어디에 나타나는지 `rqt_graph`로 추적했습니다. 그 결과 `/display_planned_path`를 양쪽 controller로 라우팅하기에 적합한 trajectory source로 선정했고, 이를 `JointTrajectory`로 변환해 사용할 수 있도록 구성했습니다.
+- **Mirror 대상으로 사용할 MoveIt 2 토픽을 선정했습니다.** MoveIt 2는 여러 토픽을 발행합니다. 저는 RViz에서 **Plan**과 **Plan + Execute**를 눌렀을 때 계획된 motion이 어디에 나타나는지 `rqt_graph`로 추적했습니다. 그 결과 `/display_planned_path`를 양쪽 controller로 전달하기에 적합한 trajectory source로 선정했고, 이를 `JointTrajectory`로 변환해 사용할 수 있도록 구성했습니다.
 
 - **노드를 설계하고 세 차례에 걸쳐 개선했습니다.**
   - `kinova_mirror_node.py` — v1. `/eps_arm/cmd`를 구독하고, prefix 처리를 거쳐 sim과 real controller 양쪽으로 다시 발행합니다.
   - `display_to_eps_cmd.py` — 팀원의 아이디어를 바탕으로 이후 추가한 bridge node입니다. MoveIt의 `DisplayTrajectory`를 일반 `JointTrajectory`로 변환해 `/eps_arm/cmd`로 보냅니다.
-  - `eps_mirror_node.py` (MirrorNode v2) — 위 두 기능을 하나의 node로 통합했습니다. MoveIt에서 들어오는 입력과 terminal에서 직접 들어오는 입력을 모두 받을 수 있으며, 이를 sim과 real controller로 동시에 라우팅합니다.
+  - `eps_mirror_node.py` (MirrorNode v2) — 위 두 기능을 하나의 node로 통합했습니다. MoveIt에서 들어오는 입력과 terminal에서 직접 들어오는 입력을 모두 받을 수 있으며, 이를 sim과 real controller로 동시에 전달합니다.
 
 - **`robot.yaml` crash를 디버깅했습니다.** 항목을 하나씩 제거하며 launch crash가 멈추는 지점을 좁혔고, 이후 안정적으로 동작하는 최소 설정을 다시 구성했습니다.
 
@@ -55,7 +55,7 @@ MoveIt (RViz Plan / Plan+Execute)        터미널 명령
 | --- | --- |
 | `src/` | ROS 2 nodes: `eps_mirror_node.py` (MirrorNode v2), `display_to_eps_cmd.py` (bridge), `kinova_mirror_node.py` (v1) |
 | `launch/` | `eps_sim.launch.py` (simulation), `eps_kinova.launch.py` (real robot) |
-| `scripts/` | `eps_kinova_connect.sh` — 실물 Kinova용 host network 설정 자동화 |
+| `scripts/` | `eps_kinova_connect.sh` — 실물 Kinova용 PC 네트워크 설정 자동화 |
 | `config/` | `robot.yaml` (Clearpath robot description) |
 | `assets/` | `rosgraph(final).png`, `TF tree.pdf`, `eps_demo.gif` |
 | `docs/` | 한국어 문서: README, TROUBLESHOOTING, 프로젝트 요약본 |
@@ -80,7 +80,7 @@ ros2 launch eps_bringup eps_sim.launch.py
 bash scripts/eps_kinova_connect.sh
 ```
 
-`eps_kinova_connect.sh` script는 host network 설정, 로봇 연결 확인, ROS 2 workspace 환경 불러오기, `eps_kinova.launch.py` 실행까지 처리합니다.
+`eps_kinova_connect.sh` script는 PC 네트워크 설정, 로봇 연결 확인, ROS 2 workspace 환경 불러오기, `eps_kinova.launch.py` 실행까지 처리합니다.
 
 ## 프로젝트 기간
 
@@ -88,5 +88,5 @@ bash scripts/eps_kinova_connect.sh
 
 ## License
 
-본 저장소의 EPS custom code에는 MIT License를 적용합니다.  
-Third-party package와 document는 각자의 original license를 따릅니다.
+본 저장소의 EPS 커스텀 코드에는 MIT License를 적용합니다.  
+외부 패키지와 문서는 각자의 원본 라이선스를 따릅니다.
