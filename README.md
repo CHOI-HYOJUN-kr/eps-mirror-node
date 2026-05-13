@@ -77,7 +77,7 @@ MoveIt (RViz Plan / Plan+Execute)        Terminal command
 ros2 launch eps_bringup eps_sim.launch.py
 
 # Real Kinova
-bash scripts/eps_kinova_connect.sh
+IFACE=enp3s0 bash scripts/eps_kinova_connect.sh
 ```
 
 The `eps_kinova_connect.sh` script configures the host network, verifies the robot connection, sources the ROS 2 workspace, and launches `eps_kinova.launch.py`.
