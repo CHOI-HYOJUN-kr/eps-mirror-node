@@ -3,119 +3,127 @@
 #  eps_kinova_connect.sh
 #
 #  Purpose:
-#    This script AUTOMATES the network configuration required to
-#    connect the PC to the REAL Kinova Gen3 robot controller.
+#    This script automates the network setup required to connect
+#    the PC to the physical Kinova Gen3 robot controller.
 #
 #    Steps performed:
-#      1) Disable firewall (ufw) to avoid blocked packets
+#      1) Optionally disable firewall (ufw)
 #      2) Configure a static IP for the selected network interface
 #      3) Ping the robot to verify the connection
-#      4) Source ROS environments
+#      4) Source ROS 2 environments
 #      5) Launch eps_kinova.launch.py (real robot bringup)
 #
 #  Why this script exists:
-#    Many students struggle with:
-#      - Finding the correct interface name (IFACE)
-#      - Assigning the correct IP to the PC
-#      - Forgetting to flush/reset IP addresses
-#      - Forgetting to source ROS environments
+#    During the project, repeated setup mistakes happened around:
+#      - Finding the correct network interface name
+#      - Assigning the correct static IP to the PC
+#      - Forgetting to flush/reset old IP addresses
+#      - Forgetting to source the ROS 2 workspace
 #
-#    This script eliminates all mistakes and does everything automatically.
+#    This script reduces those repeated mistakes by putting the steps
+#    into one reproducible command.
 # =====================================================================
 
 set -e
-# "set -e" means:
-#   If ANY command fails, the script stops immediately.
-#   This prevents the robot bringup from running with wrong settings.
 
 # ---------------------------------------------------------------------
 # CONFIGURATION VARIABLES
-# Students only need to edit IFACE.
+#
+# Edit these values for your own setup.
+# You can also override them from the terminal, for example:
+#
+#   IFACE=enp3s0 bash scripts/eps_kinova_connect.sh
+#
 # ---------------------------------------------------------------------
 
-ROBOT_IP="192.168.1.10"       # IP address of the Kinova controller
-IFACE="enxf8e43bb862b5"       # Network interface connected to the robot (edit this!)
-HOST_IP="192.168.1.11"        # Static IP to assign to the PC
-WS="$HOME/clearpath_ws"       # Path to the ROS workspace
+ROBOT_IP="${ROBOT_IP:-192.168.1.10}"     # Kinova controller IP
+HOST_IP="${HOST_IP:-192.168.1.11}"       # Static IP to assign to this PC
+IFACE="${IFACE:-}"                       # Network interface connected to the robot
+WS="${WS:-$HOME/clearpath_ws}"           # ROS 2 workspace path
+DISABLE_UFW="${DISABLE_UFW:-true}"       # Set to false if you do not want to disable ufw
 
 # ---------------------------------------------------------------------
-# 1) Disable the firewall
+# Check required input
+# ---------------------------------------------------------------------
+
+if [ -z "$IFACE" ]; then
+  echo "[ERROR] Network interface is not set."
+  echo
+  echo "Available interfaces:"
+  ip -br link
+  echo
+  echo "Run again with the correct interface, for example:"
+  echo "  IFACE=enp3s0 bash scripts/eps_kinova_connect.sh"
+  exit 1
+fi
+
+# ---------------------------------------------------------------------
+# 1) Optionally disable the firewall
 #
 # Why?
-#   Some Linux firewalls block ping or UDP packets,
-#   which prevents ROS2 discovery from working properly.
+#   Some Linux firewall settings can block ping or ROS 2 discovery.
 # ---------------------------------------------------------------------
-echo "[EPS] 🔐 Disabling firewall (ufw)..."
-sudo ufw disable || true
-# "|| true" prevents script from stopping if ufw is already disabled.
+
+if [ "$DISABLE_UFW" = "true" ]; then
+  echo "[EPS] Disabling firewall (ufw)..."
+  sudo ufw disable || true
+else
+  echo "[EPS] Skipping firewall change."
+fi
 
 # ---------------------------------------------------------------------
 # 2) Configure the selected network interface
 #
-# Steps:
-#   - Remove old IP settings
-#   - Bring the interface up
-#   - Assign our static IP (HOST_IP)
-#
-# Why?
-#   The robot uses a fixed subnet: 192.168.1.x
-#   The PC MUST also be in that subnet to communicate.
+# The robot and the PC must be on the same subnet.
+# Example:
+#   Robot: 192.168.1.10
+#   PC:    192.168.1.11
 # ---------------------------------------------------------------------
-echo "[EPS] 🌐 Configuring interface $IFACE to $HOST_IP/24 ..."
-sudo ip addr flush dev $IFACE          # Remove old IPs
-sudo ip link set $IFACE up             # Enable interface
-sudo ip addr add $HOST_IP/24 dev $IFACE  # Assign new IP
-ip addr show $IFACE | grep "inet" || true
-# Shows IP to confirm configuration worked.
+
+echo "[EPS] Configuring interface $IFACE to $HOST_IP/24 ..."
+sudo ip addr flush dev "$IFACE"
+sudo ip link set "$IFACE" up
+sudo ip addr add "$HOST_IP/24" dev "$IFACE"
+
+echo "[EPS] Current IP setting for $IFACE:"
+ip addr show "$IFACE" | grep "inet" || true
 
 # ---------------------------------------------------------------------
-# 3) Ping the robot to ensure communication works
-#
-# Why?
-#   If ping fails:
-#      → launch file will NOT work
-#      → robot controller cannot be reached
+# 3) Ping the robot to verify communication
 # ---------------------------------------------------------------------
-echo "[EPS] 📡 Pinging robot at $ROBOT_IP ..."
-if ping -c 3 $ROBOT_IP > /dev/null 2>&1; then
 
-  echo "[EPS] ✅ Connection successful! Kinova robot is reachable at $ROBOT_IP."
-  echo "[EPS] 🌟 Status: The network link is active and communication is verified."
-  echo "[EPS] 🚀 Proceeding with Kinova bringup..."
-
-  # -------------------------------------------------------------------
-  # 4) Source ROS environments
-  #
-  # Why?
-  #   The launch file requires:
-  #       - ROS2 environment variables
-  #       - Workspace build environment (install/setup.bash)
-  #
-  # If this is missing, ROS2 will say:
-  #      "package not found" or "command not found"
-  # -------------------------------------------------------------------
-  echo "[EPS] 🧠 Loading ROS environment..."
-  source /opt/ros/jazzy/setup.bash
-  source "$WS/install/setup.bash"
-
-  # -------------------------------------------------------------------
-  # 5) Launch the real robot bringup
-  #
-  # This starts:
-  #   - Kortex driver
-  #   - Motion command routing
-  #   - Joint trajectory controllers
-  #
-  # After launching, MoveIt can communicate with the real arm.
-  # -------------------------------------------------------------------
-  echo "[EPS] ▶️ Launching eps_bringup/eps_kinova.launch.py ..."
-  ros2 launch eps_bringup eps_kinova.launch.py
-
+echo "[EPS] Pinging robot at $ROBOT_IP ..."
+if ping -c 3 "$ROBOT_IP" > /dev/null 2>&1; then
+  echo "[EPS] Connection successful. Kinova robot is reachable at $ROBOT_IP."
 else
-  # -------------------------------------------------------------------
-  # Ping FAILED → Something is wrong with the network setup
-  # -------------------------------------------------------------------
-  echo "[ERROR] ❌ Connection failed: Unable to reach $ROBOT_IP."
-  echo "[ERROR] Please check the LAN cable, IP settings, and power of the robot."
+  echo "[ERROR] Connection failed: unable to reach $ROBOT_IP."
+  echo "[ERROR] Check the LAN cable, robot power, IP settings, and interface name."
   exit 1
 fi
+
+# ---------------------------------------------------------------------
+# 4) Source ROS 2 environments
+# ---------------------------------------------------------------------
+
+echo "[EPS] Loading ROS 2 environment..."
+source /opt/ros/jazzy/setup.bash
+
+if [ ! -f "$WS/install/setup.bash" ]; then
+  echo "[ERROR] Workspace setup file not found: $WS/install/setup.bash"
+  echo "[ERROR] Check the WS variable or build the workspace first."
+  exit 1
+fi
+
+source "$WS/install/setup.bash"
+
+# ---------------------------------------------------------------------
+# 5) Launch the real robot bringup
+#
+# This starts:
+#   - Kortex driver
+#   - MirrorNode v2
+#   - Real Kinova command routing
+# ---------------------------------------------------------------------
+
+echo "[EPS] Launching eps_bringup/eps_kinova.launch.py ..."
+ros2 launch eps_bringup eps_kinova.launch.py
