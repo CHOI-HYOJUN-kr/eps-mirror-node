@@ -2,7 +2,7 @@
 
 이 문서는 EPS Mobile Collaborative Robot 프로젝트에서 sim-to-real 통합을 구축하는 과정에서 겪은 주요 문제들과, 필요한 경우 팀 논의를 거쳐 이를 해결한 과정을 기록한 문서입니다. 다음 EPS 기수 학생들과, 코드를 읽으며 *왜 이런 구조로 되어 있는지* 알고 싶은 사람을 위해 작성했습니다.
 
-**Context:** 저는 ROS 2 경험이 전혀 없는 상태에서 이 프로젝트에 참여했습니다. 아래에 정리한 아키텍처 결정은 제가 직접 내린 것입니다. 코드 자체는 대부분 AI assistance를 활용해 초안을 작성했고, 이후 제가 검토하고 테스트했습니다. 테스트는 먼저 Gazebo에서 수행한 뒤, 실물 로봇으로 옮겨 진행했습니다.
+**Context:** 저는 ROS 2 경험이 전혀 없는 상태에서 이 프로젝트에 참여했습니다. 아래에 정리한 구조 관련 결정은 제가 직접 내린 것입니다. 코드 자체는 대부분 AI의 도움을 받아 초안을 작성했고, 이후 제가 검토하고 테스트했습니다. 테스트는 먼저 Gazebo에서 수행한 뒤, 실물 로봇으로 옮겨 진행했습니다.
 
 ---
 
@@ -10,19 +10,19 @@
 
 원래 Plan A는 완전한 물리 통합이었습니다. 즉, 실물 Ridgeback과 실물 Kinova Gen3를 하나의 ROS 2 인터페이스로 제어하는 것이 목표였습니다.
 
-그러나 학기 중반에 실물 Ridgeback이 배터리 문제로 사용 불가능해졌고, 프로젝트 일정 안에서는 이를 해결할 수 없었습니다. 이에 따라 팀과 supervisor는 Plan B로 전환하기로 결정했습니다. Plan B는 핵심 trajectory 라우팅 아키텍처는 유지하되, 시뮬레이션 Ridgeback과 실물 Kinova Gen3를 사용해 통합 시스템을 검증하는 방식이었습니다.
+그러나 학기 중반에 실물 Ridgeback이 배터리 문제로 사용 불가능해졌고, 프로젝트 일정 안에서는 이를 해결할 수 없었습니다. 이에 따라 팀과 supervisor는 Plan B로 전환하기로 결정했습니다. Plan B는 핵심 trajectory 전달 구조는 유지하되, 시뮬레이션 Ridgeback과 실물 Kinova Gen3를 사용해 통합 시스템을 검증하는 방식이었습니다.
 
 이 결정은 제가 단독으로 내린 것이 아니라 팀과 supervisor가 함께 내린 결정이었습니다. 다만 이후 제 작업 범위에는 직접적인 영향을 주었습니다.
 
 - Kinova sim-to-real mirroring 작업은 그대로 유지되었습니다. 이 부분이 제 담당이었고, 프로젝트의 핵심 기술 기여로 남았습니다.
 - 실물 Ridgeback 제어와 base 위에서의 mobile manipulation은 이번 학기 범위에서 제외되었습니다.
-- Gazebo simulation은 Ridgeback 측 검증의 기준 환경이 되었고, 실물 Kinova는 동일한 trajectory 라우팅 로직이 실제 하드웨어도 구동할 수 있는지 검증하는 데 사용되었습니다.
+- Gazebo simulation은 Ridgeback 측 검증의 기준 환경이 되었고, 실물 Kinova는 동일한 trajectory 전달 로직이 실제 하드웨어도 구동할 수 있는지 검증하는 데 사용되었습니다.
 
 README에서 이 프로젝트를 완전한 물리 통합이 아니라 "시뮬레이션 Ridgeback + 실물 Kinova Gen3"로 설명하는 이유가 여기에 있습니다. 아래에서 설명하는 mirror node, MoveIt 2 통합, launch 통합, connection workflow는 모두 Plan B 범위에서도 유효했습니다.
 
 ---
 
-## 1. Sim과 Real Kinova가 동일한 MoveIt 2 command를 받아들이지 않음
+## 1. 시뮬레이션 Kinova와 실물 Kinova가 동일한 MoveIt 2 명령을 받아들이지 않음
 
 **증상.** 실물 Kinova Gen3를 성공적으로 움직이던 MoveIt 2 trajectory가 Ridgeback에 마운트된 시뮬레이션 Kinova는 움직이지 못했습니다. 반대의 경우도 마찬가지였습니다.
 
@@ -61,7 +61,7 @@ README에서 이 프로젝트를 완전한 물리 통합이 아니라 "시뮬레
 - **Plan**과 **Plan+Execute** mode 모두에서 publish될 것.
 - 다시 publish할 수 있는 형태의 data를 담고 있을 것.
 
-`/display_planned_path`가 위 세 조건을 모두 만족했습니다. 이 topic은 MoveIt이 RViz에서 planned path를 visualize할 때 사용하는 topic이며, 저희 setup에서는 `JointTrajectory`로 변환해 양쪽 controller로 routing할 수 있는 실용적인 trajectory source로 사용할 수 있었습니다.
+`/display_planned_path`가 위 세 조건을 모두 만족했습니다. 이 topic은 MoveIt이 RViz에서 planned path를 visualize할 때 사용하는 topic이며, 저희 setup에서는 `JointTrajectory`로 변환해 양쪽 controller로 전달할 수 있는 practical trajectory source로 사용할 수 있었습니다.
 
 **결과.** MirrorNode v2는 `/display_planned_path`를 main input으로 subscribe합니다. 또한 terminal test를 위해 manual input인 `/eps_arm/cmd`도 받을 수 있습니다.
 
@@ -86,7 +86,7 @@ README에서 이 프로젝트를 완전한 물리 통합이 아니라 "시뮬레
 
 ## 4. ROS 2 Rolling이 우리 stack에서 불안정했음
 
-**증상.** Project brief에서는 원래 ROS 2 Rolling을 사용하라고 되어 있었습니다. 하지만 setup 초기 몇 주 동안 build가 반복적으로 깨졌고, 특히 Clearpath package에서 문제가 많이 발생했습니다. Rolling은 LTS가 아니어서 dependency version이 계속 바뀌고, 그 영향으로 기존 code가 갑자기 깨질 수 있었습니다.
+**증상.** Project brief에서는 원래 ROS 2 Rolling을 사용하라고 되어 있었습니다. 하지만 setup 초기 몇 주 동안 build가 반복적으로 깨졌고, 특히 Clearpath package에서 문제가 많이 발생했습니다. Rolling은 LTS가 아니어서 의존성 버전이 계속 바뀌고, 그 영향으로 기존 코드가 갑자기 깨질 수 있었습니다.
 
 **결정.** 저는 전체 stack을 ROS 2 Jazzy로 migration하자고 제안했습니다. 저희 환경에서는 MoveIt 2 자체는 Rolling에서도 문제없이 동작했지만, Clearpath compatibility가 핵심 문제였습니다. 팀과 논의한 뒤 전체 환경을 Jazzy로 이전했습니다.
 
@@ -103,7 +103,7 @@ README에서 이 프로젝트를 완전한 물리 통합이 아니라 "시뮬레
 - `eps_sim.launch.py` — full simulation: Gazebo + AMCL + static `map → odom` TF + Nav2 + `cmd_vel` relay
 - `eps_kinova.launch.py` — real robot: Kortex driver + MirrorNode v2
 
-또한 실물 로봇 launch 전에 host-side network setup을 처리하기 위해 `eps_kinova_connect.sh`를 작성했습니다. 이 script는 firewall을 disable하고, 올바른 network interface에 static IP를 할당하며, robot에 ping을 보내 connection을 확인합니다. 새 사용자가 가장 자주 실수하던 부분이 바로 이 단계였습니다.
+또한 실물 로봇 launch 전에 PC 네트워크 설정을 처리하기 위해 `eps_kinova_connect.sh`를 작성했습니다. 이 script는 firewall을 disable하고, 올바른 network interface에 static IP를 할당하며, robot에 ping을 보내 connection을 확인합니다. 새 사용자가 가장 자주 실수하던 부분이 바로 이 단계였습니다.
 
 ---
 
@@ -120,7 +120,7 @@ README에서 이 프로젝트를 완전한 물리 통합이 아니라 "시뮬레
 
 하지만 어떤 시도도 안정적인 Gazebo launch로 이어지지는 않았습니다.
 
-**상태.** unresolved 상태입니다. LiDAR block은 `robot.yaml`에서 comment out된 상태로 남겨두었습니다. 이 문제가 해결되기 전까지는 simulation에서 full Nav2 autonomy에 제약이 있습니다.
+**상태.** unresolved 상태입니다. LiDAR block은 `robot.yaml`에서 comment out된 상태로 남겨두었습니다. 이 문제가 해결되기 전까지는 Nav2 기반의 완전한 자율주행 검증에는 제약이 있습니다.
 
 **다음 팀을 위한 힌트.** 이 crash는 config format error라기보다는 plugin-side segfault처럼 보였습니다. 다음 항목을 시도해볼 만합니다.
 
@@ -130,7 +130,7 @@ README에서 이 프로젝트를 완전한 물리 통합이 아니라 "시뮬레
 
 ---
 
-## 7. Communication latency — acknowledged limitation
+## 7. 통신 지연 — 인정한 한계
 
 반복적인 real-robot testing 중, 같은 trajectory를 실행할 때 simulated arm과 real arm 사이에 작은 timing difference가 보이는 경우가 있었습니다.
 
