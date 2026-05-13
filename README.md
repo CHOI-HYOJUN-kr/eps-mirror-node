@@ -7,6 +7,8 @@ A ROS 2 Jazzy stack for integrating a simulated Clearpath Ridgeback mobile base 
 
 ![Demo](assets/eps_demo.gif)
 
+> 한국어 버전 · [README_KR](./docs/README_KR.md) · [TROUBLESHOOTING_KR](./docs/TROUBLESHOOTING_KR.md)
+
 ## My Contribution (Hyojun Choi)
 
 I was in charge of the Kinova Gen3 side of the integration, including the sim-to-real trajectory routing architecture, joint-name normalization, MoveIt 2 topic analysis with `rqt_graph`, launch-file consolidation, and the real-robot connection workflow.
