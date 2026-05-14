@@ -32,7 +32,7 @@ set -e
 # Edit these values for your own setup.
 # You can also override them from the terminal, for example:
 #
-#   IFACE=enp3s0 bash scripts/eps_kinova_connect.sh
+#   IFACE="${IFACE:-enxf8e43bb862b5}"   # Override with IFACE=... env var, or edit this default
 #
 # ---------------------------------------------------------------------
 
