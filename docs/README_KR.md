@@ -11,9 +11,9 @@ Clearpath Ridgeback 모바일 베이스와 Kinova Gen3 7-DOF 매니퓰레이터�
 
 ## 담당 기여 — 최효준
 
-저는 프로젝트에서 **Kinova Gen3 통합 파트**를 담당했다. 주요 역할은 시뮬레이션 로봇과 실물 로봇 사이의 trajectory 전달 구조를 설계하고, joint name 차이와 controller namespace 차이를 정리하며, MoveIt 2에서 생성된 trajectory가 양쪽 로봇으로 전달되는 흐름을 검증하는 것이었다.
+프로젝트에서 **Kinova Gen3 통합 파트**를 담당했다. 주요 역할은 시뮬레이션 로봇과 실물 로봇 사이의 trajectory 전달 구조를 설계하고, joint name 차이와 controller namespace 차이를 정리하며, MoveIt 2에서 생성된 trajectory가 양쪽 로봇으로 전달되는 흐름을 검증하는 것이었다.
 
-이 프로젝트는 제가 처음 수행한 로봇 프로젝트였다. 학기 중 ROS 2를 처음부터 학습하며 진행했고, 코드 초안 작성 속도를 높이기 위해 AI 도구도 활용했다. 다만 전체 구조 설계, topic 선정, message flow 검증, Gazebo 우선 테스트, 실물 Kinova 검증은 직접 수행했다.
+이 프로젝트는 ROS 2 경험이 없는 상태에서 시작한 첫 로봇 프로젝트였다. 학기 중 ROS 2를 처음부터 학습하며 진행했고, 코드 초안 작성 속도를 높이기 위해 AI 도구도 활용했다. 다만 구조 설계, topic 선정, message flow 검증, Gazebo 우선 테스트, 실물 Kinova 검증은 직접 수행했다.
 
 구체적으로 수행한 작업은 다음과 같다.
 
@@ -25,10 +25,10 @@ Clearpath Ridgeback 모바일 베이스와 Kinova Gen3 7-DOF 매니퓰레이터�
   * Simulation controller: `/r100_0000/arm_0_joint_trajectory_controller/...`
   * Real controller: `/joint_trajectory_controller/...`
 
-  이 차이로 인해 MoveIt 2에서 생성한 trajectory를 그대로 양쪽 로봇에 동시에 전달하기 어려웠다. 저는 이 문제를 팀에 공유했고, joint name 정규화와 topic remapping을 담당하는 별도의 ROS 2 node를 두는 방식이 가장 적절하다고 판단해 팀과 구조를 합의했다.
+  이 차이로 인해 MoveIt 2에서 생성한 trajectory를 그대로 양쪽 로봇에 동시에 전달하기 어려웠다. 이 문제를 팀에 공유했고, joint name 정규화와 topic remapping을 담당하는 별도의 ROS 2 node를 두는 방식이 가장 적절하다고 판단해 팀과 구조를 합의했다.
 
 * **MoveIt 2 trajectory source로 사용할 topic을 선정했다.**
-  MoveIt 2는 planning 및 execution 과정에서 여러 topic을 발행한다. 저는 RViz에서 **Plan**과 **Plan + Execute**를 실행했을 때 계획된 motion이 어떤 topic에 나타나는지 `rqt_graph`로 추적했다. 그 결과 `/display_planned_path`를 trajectory source로 사용할 수 있다고 판단했고, 이를 `JointTrajectory` 형태로 변환해 controller에 전달하는 구조를 구성했다.
+  MoveIt 2는 planning 및 execution 과정에서 여러 topic을 발행한다. RViz에서 **Plan**과 **Plan + Execute**를 실행했을 때 planned motion이 어떤 topic에 나타나는지 `rqt_graph`로 추적했다. 그 결과 `/display_planned_path`를 trajectory source로 사용할 수 있다고 판단했고, 이를 `JointTrajectory` 형태로 변환해 controller에 전달하는 구조를 구성했다.
 
 * **Trajectory mirror node를 설계하고 단계적으로 개선했다.**
 
@@ -42,7 +42,7 @@ Clearpath Ridgeback 모바일 베이스와 Kinova Gen3 7-DOF 매니퓰레이터�
     최종 버전인 MirrorNode v2이다. 위 두 기능을 하나의 node로 통합했다. MoveIt 2에서 들어오는 trajectory와 terminal에서 직접 입력하는 trajectory를 모두 받을 수 있으며, 이를 simulation Kinova와 real Kinova controller로 동시에 전달한다.
 
 * **`robot.yaml` launch crash를 디버깅했다.**
-  `robot.yaml` 설정으로 인해 launch 과정에서 crash가 발생했으며, 항목을 하나씩 제거하며 문제가 발생하는 지점을 좁혔다. 이후 안정적으로 동작하는 최소 설정을 다시 구성했다.
+  `robot.yaml` 설정으로 인해 launch 과정에서 crash가 발생했다. 항목을 하나씩 제거하며 문제가 발생하는 지점을 좁혔고, 이후 안정적으로 동작하는 최소 설정을 다시 구성했다.
 
 * **Simulation 및 real robot 실행용 launch 파일을 작성했다.**
 
