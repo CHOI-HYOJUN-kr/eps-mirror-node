@@ -1,92 +1,49 @@
-# Mobile Collaborative Robot
+# EPS · ROS2 궤적 변환과 로봇 통합
 
-EPS Fall 2025 — Team BOB
-ENIT, Tarbes, France · Commissioned by LGP Lab (UTTOP)
+**같은 계획 궤적을 시뮬레이션과 실물 Kinova의 관절명에 맞게 변환·분배**한 EPS 팀 프로젝트입니다. 제 담당은 Kinova 측 환경 구성과 메시지 연결, 실행 확인이었습니다.
 
-A ROS 2 Jazzy stack for integrating a simulated Clearpath Ridgeback mobile base with a Kinova Gen3 7-DOF arm, and for validating the same MoveIt 2 trajectory on both the Gazebo-simulated Kinova and the physical Kinova Gen3.
+2025.09~12 · ENIT, France · Team BOB, 5인 국제팀 · ROS2 Jazzy / MoveIt2 / Gazebo
 
-![Demo](assets/eps_demo.gif)
+![실물 Kinova와 Gazebo 팔의 기존 시연 장면](assets/eps_demo.gif)
 
-> 한국어 버전 · [README_KR](./docs/README_KR.md) · [TROUBLESHOOTING_KR](./docs/TROUBLESHOOTING_KR.md)
+*기존 공개 데모 발췌입니다. 화면을 나란히 편집한 장면으로, 두 시스템의 동시 실행이나 동기화 오차를 입증하지 않습니다.*
 
-## My Contribution (Hyojun Choi)
+## 팀의 결과와 내가 맡은 부분
 
-I was in charge of the Kinova Gen3 side of the integration, including the sim-to-real trajectory routing architecture, joint-name normalization, MoveIt 2 topic analysis with `rqt_graph`, launch-file consolidation, and the real-robot connection workflow.
-
-This was my first robotics project, so I learned ROS 2 during the semester. I used AI tools to speed up code drafting, but the architecture, topic selection, message-flow validation, Gazebo-first testing, and real-robot verification were done by me.
-
-What I did, concretely:
-
-- **Found the sim ↔ real mismatch.** The simulated Kinova (on the Ridgeback) and the real Kinova used different joint name prefixes (`arm_0_joint_X` vs `joint_X`) **and** different controller namespaces (`/r100_0000/arm_0_joint_trajectory_controller/...` vs `/joint_trajectory_controller/...`). I brought this to the team and we agreed that a custom ROS 2 node was the cleanest way to solve both at once.
-
-- **Chose the MoveIt 2 topic to mirror from.** MoveIt 2 publishes to many topics. I used `rqt_graph` to trace where the planned motion appears after pressing **Plan** and **Plan + Execute** in RViz, and used `/display_planned_path` as a practical trajectory source that could be converted into a `JointTrajectory` and routed to both controllers.
-
-- **Designed the node and iterated three times:**
-  - `kinova_mirror_node.py` — v1. Subscribes to `/eps_arm/cmd` and republishes to sim and real with the right prefix handling.
-  - `display_to_eps_cmd.py` — bridge node added later, based on a teammate's idea, to convert MoveIt's `DisplayTrajectory` into a plain `JointTrajectory` on `/eps_arm/cmd`.
-  - `eps_mirror_node.py` (MirrorNode v2) — merged the two into a single node that accepts either input and routes to sim and real at the same time.
-
-- **Debugged the `robot.yaml` crash** by removing entries one by one until the launch stopped crashing, then rebuilt a minimal stable config.
-
-- **Wrote the unified launch files** (`eps_sim.launch.py`, `eps_kinova.launch.py`) and the **network setup bash script** (`eps_kinova_connect.sh`) that prepares the host before connecting to the real robot.
-
-- **Wrote the team's Setup Guide** so the next EPS cohort can reproduce the environment.
-
-For the detailed problems I ran into and how I worked around them, see [**TROUBLESHOOTING.md**](./TROUBLESHOOTING.md).
-
-## Node Architecture
-
-```
-MoveIt (RViz Plan / Plan+Execute)        Terminal command
-            ↓                                   ↓
-   /display_planned_path           /eps_arm/cmd (JointTrajectory)
-            └───────────────┬───────────────────┘
-                            ↓
-                    [ MirrorNode v2 ]
-                   (eps_mirror_node.py)
-                       ↓           ↓
-              Gazebo sim         Real Kinova Gen3
-            (arm_0_joint_X)         (joint_X)
-```
-
-## Repository Layout
-
-| Folder | Contents |
+| 구분 | 내용 |
 | --- | --- |
-| `src/` | ROS 2 nodes: `eps_mirror_node.py` (MirrorNode v2), `display_to_eps_cmd.py` (bridge), `kinova_mirror_node.py` (v1) |
-| `launch/` | `eps_sim.launch.py` (simulation), `eps_kinova.launch.py` (real robot) |
-| `scripts/` | `eps_kinova_connect.sh` — automates host network config for the real Kinova |
-| `config/` | `robot.yaml` (Clearpath robot description) |
-| `assets/` | `rosgraph(final).png`, `TF tree.pdf`, `eps_demo.gif` |
-| `docs/` | Korean versions: README, TROUBLESHOOTING, and project summary |
+| 팀 | 모바일 매니퓰레이터 요구사항·시나리오, 프로젝트 관리·보고서, 결합 시뮬레이션 |
+| 본인 | Kinova 제어, ROS2 환경·결합 모델 구성, 토픽·메시지 분석, 궤적 변환·분배, 실행 절차·Setup Guide |
+| 팀원 제안 | MoveIt2의 `/display_planned_path`를 궤적 입력으로 활용 |
+| AI 활용 | 구조와 인터페이스를 검토한 뒤 코드 초안을 생성하고, 실행 결과를 대조·수정 |
 
-> Note: The `.launch.py` files are written assuming they live inside a ROS 2 package named `eps_bringup` in a Colcon workspace. To run the commands below, place them inside your own `eps_bringup` package.
+## 핵심 판단: remap만으로 관절명은 바뀌지 않았다
 
-## Environment
+Gazebo는 `arm_0_joint_*`, 실물은 `joint_*`를 기대했습니다. 토픽 경로와 메시지 내부의 `joint_names`를 구분하고, 첫 `JointTrajectory`를 추출해 관절명만 목적지 형식으로 바꿨습니다.
 
-- Ubuntu 24.04
-- ROS 2 Jazzy
-- Gazebo (Clearpath simulation packages)
-- MoveIt 2
-- Kinova Kortex ROS 2 driver
-
-## Run
-
-```bash
-# Simulation
-ros2 launch eps_bringup eps_sim.launch.py
-
-# Real Kinova
-IFACE=enp3s0 bash scripts/eps_kinova_connect.sh
+```mermaid
+flowchart LR
+    D[MoveIt2 DisplayTrajectory] --> E[첫 JointTrajectory 추출]
+    T[터미널 JointTrajectory] --> M[MirrorNode]
+    E --> M
+    M --> S[arm_0_ 접두어 · Gazebo controller]
+    M --> R[joint_* · 실물 Kinova controller]
 ```
 
-The `eps_kinova_connect.sh` script configures the host network, verifies the robot connection, sources the ROS 2 workspace, and launches `eps_kinova.launch.py`.
+Rolling 구성의 크래시를 확인한 뒤 Jazzy 전환을 제안했습니다. `robot.yaml`은 구성요소를 하나씩 빼고 넣으며 안정 설정을 찾았습니다. 분리된 bridge/mirror는 실행 흐름을 단순화하려고 통합했으며, 통신지연 개선은 측정하지 않았습니다. [문제와 수정 과정](docs/engineering-notes.md)
 
-## Project Period
+## 실제로 확인한 범위
 
-2025-09-01 – 2025-12-18 · 30 ECTS · one semester
+결합 Gazebo 모델과 실물 Kinova 팔에서 동작을 확인했습니다. 물리 Ridgeback은 배터리 문제로 전체 실물 시나리오를 완료하지 못했고, LiDAR 플러그인 문제도 남았습니다. [시뮬레이션·실물·미완료 범위](docs/results.md)
 
-## License
+## 코드 읽기와 실행
 
-MIT for the custom EPS code in this repository.
-Third-party packages and documents follow their original licenses.
+- [메시지 변환 규칙](src/eps_mirror/routing.py) → [ROS2 노드](src/eps_mirror/mirror_node.py)
+- [환경·설치·simulation-only 실행](docs/running.md)
+- 장비 없이 변환·거부 조건 확인: `python -m unittest discover -s tests -v`
+
+**2026-09 공개 준비 수정:** 패키지 설치 파일, 입력 검사, 실물 출력 기본 비활성화, 테스트를 추가했습니다. 이 코드는 당시 원본에서 정리한 후속 버전이며 ROS2·실물 재시험은 아직 하지 않았습니다. [기존 버전과 변경 범위](docs/maintenance.md)
+
+[English summary](docs/README_EN.md) · [출처·MIT 범위](SOURCES.md)
+
+[다른 프로젝트 보기](https://github.com/CHOI-HYOJUN-kr)
