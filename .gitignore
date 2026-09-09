@@ -1,6 +1,5 @@
-# Exact release allowlist. Add reviewed paths explicitly.
+# Exact public release allowlist. Review new paths before adding them.
 /*
-!/.gitignore
 !/assets/
 /assets/*
 !/docs/
@@ -18,10 +17,14 @@
 !/src/eps_mirror/
 /src/eps_mirror/*
 !/.gitattributes
+!/.gitignore
 !/LICENSE
 !/README.md
 !/SOURCES.md
-!/assets/eps_demo.gif
+!/assets/kinova-demo-1x.mp4
+!/assets/kinova-overview.jpg
+!/assets/kinova-preview.gif
+!/assets/trajectory-routing.png
 !/docs/README_EN.md
 !/docs/engineering-notes.md
 !/docs/maintenance.md
