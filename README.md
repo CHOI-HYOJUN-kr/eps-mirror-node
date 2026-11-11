@@ -13,18 +13,18 @@ A ROS 2 Jazzy stack for integrating a simulated Clearpath Ridgeback mobile base 
 
 I was in charge of the Kinova Gen3 side of the integration, including the sim-to-real trajectory routing architecture, joint-name normalization, MoveIt 2 topic analysis with `rqt_graph`, launch-file consolidation, and the real-robot connection workflow.
 
-This was my first robotics project, so I learned ROS 2 during the semester. I used AI tools to speed up code drafting, but the architecture, topic selection, message-flow validation, Gazebo-first testing, and real-robot verification were done by me.
+This was my first robotics project, so I learned ROS 2 during the semester. I used AI tools to speed up code drafting, but the architecture, message-flow validation, Gazebo-first testing, and real-robot verification were done by me.
 
 What I did, concretely:
 
 - **Found the sim ↔ real mismatch.** The simulated Kinova (on the Ridgeback) and the real Kinova used different joint name prefixes (`arm_0_joint_X` vs `joint_X`) **and** different controller namespaces (`/r100_0000/arm_0_joint_trajectory_controller/...` vs `/joint_trajectory_controller/...`). I brought this to the team and we agreed that a custom ROS 2 node was the cleanest way to solve both at once.
 
-- **Chose the MoveIt 2 topic to mirror from.** MoveIt 2 publishes to many topics. I used `rqt_graph` to trace where the planned motion appears after pressing **Plan** and **Plan + Execute** in RViz, and used `/display_planned_path` as a practical trajectory source that could be converted into a `JointTrajectory` and routed to both controllers.
+- **Turned the MoveIt 2 planned path into a trajectory input.** A teammate suggested using `/display_planned_path`. I used `rqt_graph` to check where the planned motion appears after pressing **Plan** and **Plan + Execute** in RViz, then converted this topic's message into a `JointTrajectory` that could be routed to both controllers.
 
 - **Designed the node and iterated three times:**
   - `kinova_mirror_node.py` — v1. Subscribes to `/eps_arm/cmd` and republishes to sim and real with the right prefix handling.
   - `display_to_eps_cmd.py` — bridge node added later, based on a teammate's idea, to convert MoveIt's `DisplayTrajectory` into a plain `JointTrajectory` on `/eps_arm/cmd`.
-  - `eps_mirror_node.py` (MirrorNode v2) — merged the two into a single node that accepts either input and routes to sim and real at the same time.
+  - `eps_mirror_node.py` (MirrorNode v2) — merged the two into a single node that accepts either input and routes each trajectory to both the sim and the real controller.
 
 - **Debugged the `robot.yaml` crash** by removing entries one by one until the launch stopped crashing, then rebuilt a minimal stable config.
 

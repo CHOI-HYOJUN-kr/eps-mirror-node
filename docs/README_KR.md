@@ -13,7 +13,7 @@ Clearpath Ridgeback 모바일 베이스와 Kinova Gen3 7-DOF 매니퓰레이터�
 
 프로젝트에서 **Kinova Gen3 통합**을 담당했습니다. 시뮬레이션 로봇과 실물 로봇에 궤적을 전달하는 방식을 설계하고, 관절명과 controller namespace의 차이를 정리했습니다. MoveIt 2에서 생성한 궤적이 양쪽 로봇으로 전달되는지도 검증했습니다.
 
-ROS 2 경험 없이 시작한 첫 로봇 프로젝트로, 학기 중 ROS 2를 처음부터 배우며 진행했습니다. 코드 초안을 빠르게 작성하는 데 AI 도구를 활용했습니다. 구조 설계와 토픽 선정, 메시지 전달 검증은 직접 했습니다. 테스트도 Gazebo에서 먼저 진행하고, 이후 실물 Kinova에서 검증했습니다.
+ROS 2 경험 없이 시작한 첫 로봇 프로젝트로, 학기 중 ROS 2를 처음부터 배우며 진행했습니다. 코드 초안을 빠르게 작성하는 데 AI 도구를 활용했습니다. 구조 설계와 메시지 전달 검증은 직접 했습니다. 테스트도 Gazebo에서 먼저 진행하고, 이후 실물 Kinova에서 검증했습니다.
 
 구체적인 작업은 다음과 같습니다.
 
@@ -27,8 +27,8 @@ ROS 2 경험 없이 시작한 첫 로봇 프로젝트로, 학기 중 ROS 2를 �
 
   이 차이 때문에 MoveIt 2에서 생성한 궤적을 그대로 양쪽 로봇에 동시에 전달하기 어려웠습니다. 팀에 문제를 공유한 뒤, 관절명 정규화와 토픽 remapping을 처리하는 별도의 ROS 2 노드를 두는 것이 가장 적절하다고 판단했습니다. 팀과도 이 방식으로 합의했습니다.
 
-* **MoveIt 2에서 궤적을 받아올 토픽을 선정했습니다.**
-  MoveIt 2는 계획과 실행 과정에서 여러 토픽으로 메시지를 발행합니다. RViz에서 **Plan**과 **Plan + Execute**를 실행했을 때 계획한 동작이 어느 토픽에 나타나는지 `rqt_graph`로 추적했습니다. 그 결과 `/display_planned_path`를 궤적 입력으로 선택했습니다. 이 토픽의 메시지를 `JointTrajectory`로 변환해 controller에 전달하도록 구현했습니다.
+* **MoveIt 2의 계획 경로를 궤적 입력으로 바꿨습니다.**
+  MoveIt 2는 계획과 실행 과정에서 여러 토픽으로 메시지를 발행합니다. RViz에서 **Plan**과 **Plan + Execute**를 실행했을 때 계획한 동작이 어느 토픽에 나타나는지 `rqt_graph`로 확인했습니다. 팀원이 제안한 `/display_planned_path`를 궤적 입력으로 썼습니다. 이 토픽의 메시지를 `JointTrajectory`로 변환해 controller에 전달하도록 구현했습니다.
 
 * **Trajectory mirror node를 설계하고 단계적으로 개선했습니다.**
 
@@ -39,7 +39,7 @@ ROS 2 경험 없이 시작한 첫 로봇 프로젝트로, 학기 중 ROS 2를 �
     팀원의 아이디어를 바탕으로 추가한 bridge node입니다. MoveIt 2의 `DisplayTrajectory` 메시지를 일반 `JointTrajectory`로 변환해 `/eps_arm/cmd`로 전달합니다.
 
   * `eps_mirror_node.py`
-    두 기능을 하나의 노드로 통합한 최종 버전 MirrorNode v2입니다. MoveIt 2에서 생성한 궤적과 터미널에서 직접 입력한 궤적을 모두 받아 simulation Kinova와 real Kinova controller로 동시에 전달합니다.
+    두 기능을 하나의 노드로 통합한 최종 버전 MirrorNode v2입니다. MoveIt 2에서 생성한 궤적과 터미널에서 직접 입력한 궤적을 모두 받아 simulation Kinova와 real Kinova controller 양쪽으로 전달합니다.
 
 * **`robot.yaml` 설정으로 인한 launch crash를 디버깅했습니다.**
   launch 과정에서 crash가 발생해 `robot.yaml` 항목을 하나씩 제거하며 원인을 좁혔습니다. 이후 안정적으로 동작하는 데 필요한 최소 설정을 다시 구성했습니다.
